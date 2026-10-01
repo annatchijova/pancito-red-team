@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from offensive.authn import AuthnPlan, AuthnPlanError, run_authn_experiment
+from offensive.authn_cli import main as authn_cli_main
 from offensive.bola import BearerCredential
 
 
@@ -230,3 +231,45 @@ def test_all_three_requests_are_marked_for_blue_and_marker_is_not_detection(auth
     }
     assert handler.exercise_events[1]["authorization_present"] is False
     assert objective["correlation_marker_is_detection"] is False
+
+
+def test_cli_executes_the_real_three_cell_experiment_without_disclosing_secrets(
+    authn_lab, tmp_path, capsys
+):
+    origin, handler = authn_lab
+    handler.anonymous_vulnerable = True
+    manifest = {
+        "schema_version": 1,
+        "experiment_id": "AUTHN-CLI-E2E-001",
+        "authorization_reference": "written-lab-scope-008",
+        "authorized_by": "Lab Owner",
+        "operator_acknowledged": True,
+        "target_origin": origin,
+        "protected_path": "/protected",
+        "valid_principal_id": "valid-principal",
+        "valid_token_env": "PANCITO_AUTHN_VALID_TOKEN",
+        "protected_canary_env": "PANCITO_AUTHN_PROTECTED_CANARY",
+        "invalid_bearer_env": "PANCITO_AUTHN_INVALID_BEARER",
+        "timeout_ms": 2000,
+        "max_response_bytes": 16384,
+    }
+    path = tmp_path / "authn.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    environment = {
+        "PANCITO_AUTHN_VALID_TOKEN": VALID_TOKEN,
+        "PANCITO_AUTHN_PROTECTED_CANARY": PROTECTED_CANARY,
+        "PANCITO_AUTHN_INVALID_BEARER": INVALID_TOKEN,
+    }
+
+    exit_code = authn_cli_main([str(path)], environ=environment)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert result["epistemic_level"] == "CONFIRMED_BY_INDUCTION"
+    assert result["reason_code"] == "ANONYMOUS_OBSERVED_PROTECTED_CANARY"
+    assert len(handler.exercise_events) == 3
+    assert captured.err == ""
+    assert VALID_TOKEN not in captured.out
+    assert INVALID_TOKEN not in captured.out
+    assert PROTECTED_CANARY not in captured.out
