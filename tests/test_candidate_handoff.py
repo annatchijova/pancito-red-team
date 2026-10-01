@@ -9,9 +9,17 @@ import pytest
 from offensive.authn import AuthnPlan, AuthnPlanError
 from offensive.bola import BolaPlan, BolaPlanError
 from offensive.handoff import (
+    AuthnCandidateHandoff,
+    BolaCandidateHandoff,
+    FileIngressCandidateHandoff,
     HandoffError,
+    StateChangeCandidateHandoff,
+    authn_path_matches_candidate_template,
+    file_ingress_path_matches,
+    path_matches_candidate_template,
     select_authn_candidate,
     select_bola_candidate,
+    state_change_path_matches_candidate_template,
 )
 from offensive.openapi_surface import (
     AssetAnnotation,
@@ -228,3 +236,53 @@ def test_authn_handoff_rejects_unranked_wrong_type_and_route_drift():
         _authn_plan(handoff, protected_path="/admin")
     with pytest.raises(AuthnPlanError, match="candidate path template"):
         _authn_plan(handoff, protected_path="/profile?view=expanded")
+
+
+def test_candidate_handoff_rejects_encoded_path_separator():
+    handoff = AuthnCandidateHandoff(
+        candidate_id="CANDIDATE-0123456789abcdef",
+        source_label="api/openapi.json@authn789",
+        source_sha256="a" * 64,
+        entry_point="GET /api/v1/users/{user_id}",
+    )
+
+    with pytest.raises(AuthnPlanError, match="candidate path template"):
+        _authn_plan(handoff, protected_path="/api/v1/users/%2e%2e%2fadmin")
+
+
+@pytest.mark.parametrize(
+    ("handoff_type", "matcher", "method"),
+    [
+        (BolaCandidateHandoff, path_matches_candidate_template, "GET"),
+        (AuthnCandidateHandoff, authn_path_matches_candidate_template, "GET"),
+        (
+            StateChangeCandidateHandoff,
+            state_change_path_matches_candidate_template,
+            "PATCH",
+        ),
+        (FileIngressCandidateHandoff, file_ingress_path_matches, "POST"),
+    ],
+)
+def test_all_handoff_matchers_reject_encoded_route_changes(
+    handoff_type, matcher, method
+):
+    handoff = handoff_type(
+        candidate_id="CANDIDATE-0123456789abcdef",
+        source_label="api/openapi.json@encoded-route",
+        source_sha256="b" * 64,
+        entry_point=f"{method} /api/v1/users/{{user_id}}",
+    )
+
+    assert not matcher(handoff, "/api/v1/users/%2e%2e%2fadmin")
+
+
+def test_candidate_matcher_enforces_the_concrete_path_size_boundary():
+    handoff = AuthnCandidateHandoff(
+        candidate_id="CANDIDATE-0123456789abcdef",
+        source_label="api/openapi.json@path-size",
+        source_sha256="c" * 64,
+        entry_point="GET /api/{user_id}",
+    )
+
+    assert authn_path_matches_candidate_template(handoff, "/api/" + "x" * 2_043)
+    assert not authn_path_matches_candidate_template(handoff, "/api/" + "x" * 2_044)

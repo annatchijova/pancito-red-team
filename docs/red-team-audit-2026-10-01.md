@@ -4,6 +4,7 @@
 **First-round base:** `main` at `cc5fd01`, plus async-export changes present at
 audit start
 **Second-round base:** `main` at `2b7d16c`
+**Third-round base:** `main` at `a3b1c4f`
 **Method:** adversarial code review, authorization-surface mapping, invariant
 hunting, falsifiable local tests, and provenance-preserving reporting
 **Target boundary:** repository code and local test doubles only. No external
@@ -11,8 +12,8 @@ target, production service, credential, or third-party repository was probed.
 
 ## Executive result
 
-Four findings have now been tracked across the first and second audit rounds.
-The first three are remediated in commit `2b7d16c`; the fourth is remediated in
+Five findings have now been tracked across three audit rounds.
+The first four are remediated in commit `a3b1c4f`; the fifth is remediated in
 the current working tree. The async-export experiment is committed but only
 exercises controlled loopback labs; it is not evidence about a real API. The
 SIFT result remains bounded to synthetic producer-shaped facts.
@@ -22,14 +23,17 @@ SIFT result remains bounded to synthetic producer-shaped facts.
 | RT-2026-01 | P1 | Pytest could bind the service's global case store to a configured Firestore project, making fixed-ID service tests depend on and potentially mutate persistent external state. | `GOOGLE_CLOUD_PROJECT` was set; a full-suite run returned 409 for pre-existing `SVC-*`, `CAP-*`, `DEFER-*`, and `AAA-VICTIM` IDs. `service.app` constructs the store at import; `build_case_store()` selects Firestore when the project is set and the memory override is absent. | Remediated in `2b7d16c` by forcing `VIGIA_CASE_BACKEND=memory` before test imports and per test. Full suite passes with isolation. No records were intentionally deleted. |
 | RT-2026-02 | P2 | Async-export work populated `_Event` fields positionally after adding canary fields; response hashes landed in the wrong fields and `response_capture_sha256` remained empty. The declared `other_tenant_canary_observed` field was never computed, and Purple validation still expected the old event shape. | Targeted loopback test failed because response digests were not 64 hex characters. Code-path review found the canary field defaulting to `None`; receipt validation did not yet require field/event consistency. | Remediated in `2b7d16c` using keyword fields, computing both canary observations, validating event-specific shape, and updating fixtures. Targeted and full tests pass. |
 | RT-2026-03 | P2 | SIFT Memory/MFT producer summaries lost shared correlation identity, so the timeline missed a cross-source causal inversion despite both positive controls working. | Historical induction in [`timeline-composition-audit.md`](timeline-composition-audit.md), base `209db4d`; production-shaped synthetic pair yielded `MEMORY_WITHOUT_DISK` instead of `CAUSAL_INVERSION`. | Remediated in `2b7d16c` for the unique-basename case; ambiguity deliberately remains uncorrelated. Regression test detects the synthetic causal inversion. No real-image or sealed-verdict impact was established. |
-| RT-2026-04 | P2 | Six authorization clients accepted explicit port `0` as if no port were supplied (`port or 80`) and then connected to port 80. A manifest could therefore escape its declared loopback endpoint, potentially sending Bearer credentials to a different local service. | Pure-code induction: `_origin("http://127.0.0.1:0")` returned a parsed origin whose port was `0`, while the client's fallback expression selected `80`. The pattern existed in async export, scope, search, collection, export, and function authorization. No socket was opened and credential delivery to a listener was not tested. | Remediated in the current patch by distinguishing `None` from explicit zero in validation and connection setup across six affected clients. Regression cases require port 0 rejection. Targeted and full suites pass. |
+| RT-2026-04 | P2 | Six authorization clients accepted explicit port `0` as if no port were supplied (`port or 80`) and then connected to port 80. A manifest could therefore escape its declared loopback endpoint, potentially sending Bearer credentials to a different local service. | Pure-code induction: `_origin("http://127.0.0.1:0")` returned a parsed origin whose port was `0`, while the client's fallback expression selected `80`. The pattern existed in async export, scope, search, collection, export, and function authorization. No socket was opened and credential delivery to a listener was not tested. | Remediated in `a3b1c4f` by distinguishing `None` from explicit zero in validation and connection setup across six affected clients. Regression cases require port 0 rejection. Targeted and full suites pass. |
+| RT-2026-05 | P2 | The shared OpenAPI handoff matcher accepted an encoded route separator inside a placeholder: `/api/v1/users/%2e%2e%2fadmin` matched `/api/v1/users/{user_id}`. A downstream parser that decodes and normalizes the path can resolve it as `/api/v1/admin`, outside the selected candidate route. | Confirmed by local induction on `a3b1c4f`: `AuthnPlan` accepted the handoff/path pair and the matcher returned true; independent `unquote` + `normpath` produced `/api/v1/admin`. Runtime: Python 3.12.3. No live framework or real target was used, so downstream route remapping remains deployment-dependent. | Remediated in the current patch at the shared matcher by rejecting percent-encoded, backslash, control, empty, and dot-segment paths, and by bounding the concrete path to 2,048 characters before parsing/splitting. Regression covers Authn plan validation, all four handoff matchers, and max/max+1. |
 
 Priority labels are ordinal triage within this audit, not CVSS scores. P1
 reflects the possibility of tests using persistent operator data; P2 findings
 affect evidence quality, the declared target boundary, or a bounded
 experiment's receipt contract. For RT-2026-04, parser-to-client remapping is
 confirmed; actual credential receipt by a local service was not tested. No P0
-emergency was identified in the reviewed scope.
+emergency was identified in the reviewed scope. RT-2026-05 confirms an
+accepted ambiguous route at the handoff boundary; actual framework routing and
+credential delivery remain untested.
 
 ## Threat model and trust boundaries
 
@@ -61,8 +65,9 @@ targets. Each result is evidence about only the exact tested cell.
 ## Reproduction and verification
 
 The first-round pre-remediation full suite produced 14 failures: one async
-receipt-integrity failure and 13 service-test duplicate-ID failures. Those service failures were
-consistent with the configured persistent backend and pre-existing test IDs;
+receipt-integrity failure and 13 service-test duplicate-ID failures. Those
+service failures were consistent with the configured persistent backend and
+pre-existing test IDs;
 the audit did not delete or overwrite those records. After isolating tests and
 fixing the first-round code contracts, the full suite passed. After the
 second-round port fix, the full suite also passed with one ADK
@@ -70,6 +75,22 @@ experimental-feature warning and five skipped tests:
 
 ```bash
 python3 -m pytest -q -p no:cacheprovider
+```
+
+After the third-round handoff fix, the full suite again passed with five skipped
+tests and one ADK experimental-feature warning. The focused route suite passed
+after a red-first regression and negative-control mutation:
+
+```bash
+python3 -m pytest tests/test_candidate_handoff.py tests/test_authn_differential.py tests/test_bola_differential.py tests/test_state_change_differential.py tests/test_file_ingress_differential.py -q -p no:cacheprovider
+```
+
+For RT-2026-05, prediction on base `a3b1c4f`: the candidate matcher rejects an
+encoded slash inside a route parameter. The following local-only induction
+instead showed the plan accepting that path; no socket was opened:
+
+```bash
+python3 -c 'from offensive.handoff import AuthnCandidateHandoff, authn_path_matches_candidate_template; from offensive.authn import AuthnPlan; from urllib.parse import unquote; import posixpath; h=AuthnCandidateHandoff("CANDIDATE-0123456789abcdef", "openapi.json", "a"*64, "GET /api/v1/users/{user_id}"); p="/api/v1/users/%2e%2e%2fadmin"; plan=AuthnPlan("EXP-01", "AUTHZ-01", "operator", True, "http://127.0.0.1:8080", p, "protected-canary", "invalid-token", candidate_handoff=h); print({"plan_accepted": True, "matcher_accepts": authn_path_matches_candidate_template(h,p), "wire_path": p, "decoded_normalized_path": posixpath.normpath(unquote(p))})'
 ```
 
 The run required loopback permission for local test servers. One ADK experimental
@@ -81,6 +102,10 @@ python3 -m pytest tests/test_timeline_evasion.py tests/test_timeline_evasion_cli
 
 ## Falsified vectors and untested surface
 
+- The RT-2026-05 consequence is conditional on a downstream server/router
+  decoding encoded delimiters and normalizing dot segments; actual products
+  vary, and no framework-specific request was sent. A corpus of 261 percent,
+  dot-segment, and slash-ambiguity vectors was rejected by the patched matcher.
 - Wrong-tenant download denial versus job expiry is distinguished only in the
   local mock by the post-test owner-control request; no third-party API was
   tested.

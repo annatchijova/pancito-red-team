@@ -344,16 +344,38 @@ def path_matches_candidate_template(
 
 
 def _path_matches_template(template: str, concrete_path: str) -> bool:
+    if len(concrete_path) > 2_048 or len(template) > 2_128:
+        return False
     parsed = urlsplit(concrete_path)
-    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment:
+    if (
+        not concrete_path.startswith("/")
+        or concrete_path.startswith("//")
+        or "\\" in template
+        or "\\" in concrete_path
+        or "%" in template
+        or "%" in concrete_path
+        or parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+        or any(
+            unicodedata.category(character).startswith("C")
+            for character in concrete_path
+        )
+    ):
         return False
     template_segments = template.split("/")[1:]
     concrete_segments = concrete_path.split("/")[1:]
+    if any(
+        not segment or segment in {".", ".."}
+        for segment in (*template_segments, *concrete_segments)
+    ):
+        return False
     if len(template_segments) != len(concrete_segments):
         return False
     for expected, observed in zip(template_segments, concrete_segments, strict=True):
         if _PLACEHOLDER_RE.fullmatch(expected):
-            if not observed or observed in {".", ".."}:
+            if not observed:
                 return False
         elif expected != observed:
             return False
