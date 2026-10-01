@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "experiment_id": "BFLA-LOOPBACK-001",
+  "authorization_reference": "replace-with-written-loopback-authorization",
+  "authorized_by": "replace-with-authorizer-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "admin_path": "/admin/report",
+  "member_control_path": "/member/profile",
+  "admin_principal_id": "lab-admin",
+  "member_principal_id": "lab-member",
+  "admin_token_env": "PANCITO_BFLA_ADMIN_TOKEN",
+  "member_token_env": "PANCITO_BFLA_MEMBER_TOKEN",
+  "admin_canary_env": "PANCITO_BFLA_ADMIN_CANARY",
+  "member_canary_env": "PANCITO_BFLA_MEMBER_CANARY",
+  "timeout_ms": 2000,
+  "max_response_bytes": 16384
+}

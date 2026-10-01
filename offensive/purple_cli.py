@@ -20,6 +20,7 @@ from offensive.purple import (
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
     evaluate_stale_authority_detection,
+    evaluate_function_authz_detection,
     evaluate_state_change_detection,
 )
 
@@ -178,6 +179,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "mass-assignment",
             "nested-bola",
             "stale-authority",
+            "function-authz",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -196,6 +198,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "mass-assignment": evaluate_mass_assignment_detection,
             "nested-bola": evaluate_nested_bola_detection,
             "stale-authority": evaluate_stale_authority_detection,
+            "function-authz": evaluate_function_authz_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {

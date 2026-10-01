@@ -59,6 +59,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Replay de telemetría hostil | ¿La ruta DFIR sellada detecta las técnicas ATT&CK esperadas? | Fixtures versionadas, catálogo fijo y cadena de custodia verificada |
 | Diferencial BOLA | ¿Un principal autenticado puede leer el objeto de otro? | Controles owner/peer antes de una celda cross-principal |
 | BOLA anidado | ¿Una ruta de padre autorizada puede recuperar un hijo perteneciente a otro padre? | Sólo cambia el ID del hijo; demuestra exposición el canario ajeno, no un `200` |
+| Autorización de función / BFLA | ¿Un miembro puede invocar una función administrativa de lectura? | Controles admin/member antes de un replay que sólo cambia credencial; demuestra acceso el canario admin, no un `200` |
 | Diferencial de autenticación | ¿Datos protegidos sobreviven credenciales ausentes o inválidas? | Un 2xx no alcanza sin observar el canario protegido |
 | Cambio de estado público | ¿Una identidad anónima o inválida puede mutar un campo? | Read-back autenticado y restauración verificada |
 | Mass assignment / BOPLA | ¿Un actor de bajo privilegio puede modificar una propiedad protegida? | Control sobre campo permitido, read-back del observador y restauración verificada de ambos campos |
@@ -116,6 +117,7 @@ Para preparar el entorno y usar el servicio heredado opcional, ver
   presupuesto, custodia y oráculo Blue determinista.
 - Las suites de [BOLA](tests/test_bola_differential.py),
   [BOLA anidado](tests/test_nested_bola_differential.py),
+  [autorización de función](tests/test_function_authz_differential.py),
   [autenticación](tests/test_authn_differential.py),
   [cambio de estado](tests/test_state_change_differential.py),
   [mass assignment](tests/test_mass_assignment_differential.py) e

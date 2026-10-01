@@ -2,14 +2,13 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `c570ecc` and the current working tree.
+of base commit `0c61e48` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Stale authority after role revocation | Authenticated request with an already-issued token | AUTHENTICATED | Revoked privileges and tenant data | Authority may be cached in an issued credential; a bounded reversible transition now exists | `offensive/stale_authority.py` | The same credential loses protected access after verified revocation | CANDIDATE |
-| 2 | Nested-resource authorization mismatch | `/parents/{p}/children/{c}` | AUTHENTICATED | Cross-tenant child resources | Parent and child authorization may be resolved independently; a bounded child-only differential exists | `offensive/nested_bola.py` | Swapping only the child identifier is denied and returns no foreign canary | CANDIDATE |
+| 1 | Broken function-level authorization | Administrative read route | AUTHENTICATED MEMBER | Administrative data or function output | Route existence and role enforcement are distinct controls; a bounded credential-only differential now exists | `offensive/function_authz.py` | Both role controls succeed and the member is denied with no admin canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -28,6 +27,9 @@ None. This artifact ranks capability gaps; it does not assert a target finding.
 - Property-level authorization was removed from the capability-gap queue after
   `offensive/mass_assignment.py` established a bounded experiment. This closes
   an implementation gap; it does not refute or confirm any target candidate.
+- Stale authority and nested-resource authorization were removed from the queue
+  after bounded experiments established their test contracts. This closes
+  implementation gaps; it does not assert that any target is safe or vulnerable.
 
 ## Not enumerated (coverage gaps)
 

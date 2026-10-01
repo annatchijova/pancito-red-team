@@ -19,6 +19,11 @@ _NESTED_BOLA_STEPS = (
     "PEER_NESTED_CONTROL",
     "CROSS_CHILD_TEST",
 )
+_FUNCTION_AUTHZ_STEPS = (
+    "ADMIN_FUNCTION_CONTROL",
+    "MEMBER_FUNCTION_CONTROL",
+    "MEMBER_ADMIN_FUNCTION_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -93,6 +98,10 @@ _NESTED_BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed child read whose resolved parent differs from the parent "
     "authorized in the route. Required data: subject, route parent, child identifier, "
     "resolved child parent, authorization decision, and status."
+)
+_FUNCTION_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when a non-administrative principal is granted an administrative function. "
+    "Required data: subject, effective role, route, required role, decision, and status."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -187,6 +196,27 @@ def nested_bola_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "OWNER_NESTED_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _NESTED_BOLA_DETECTION_REQUIREMENT,
+    }
+
+
+def function_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one function-level authorization differential."""
+    return {
+        "technique": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
+        "attack_mapping": "OWASP_API5_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise", "step_header": "X-Pancito-Step",
+        "expected_steps": list(_FUNCTION_AUTHZ_STEPS),
+        "expected_event_count": len(_FUNCTION_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with subject, effective role, route, and status",
+            "authorization decision with required role and grant or denial",
+        ],
+        "true_positive_step": "MEMBER_ADMIN_FUNCTION_TEST",
+        "benign_twin_step": "ADMIN_FUNCTION_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _FUNCTION_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -629,6 +659,52 @@ def evaluate_nested_bola_detection(
         declared_steps=_NESTED_BOLA_STEPS,
         detection_requirement=_NESTED_BOLA_DETECTION_REQUIREMENT,
     )
+
+
+def evaluate_function_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the exact member-to-admin function replay."""
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("BFLA request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("BFLA receipt contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"admin_control_passed", "member_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("BFLA controls are inconsistent")
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    controls_passed = controls == {
+        "admin_control_passed": True,
+        "member_control_passed": True,
+    }
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not controls_passed or reason != "MEMBER_OBSERVED_ADMIN_CANARY":
+            raise BlueObservationError("BFLA confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not controls_passed or reason != "MEMBER_ADMIN_FUNCTION_DENIED":
+            raise BlueObservationError("BFLA falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "ADMIN_CONTROL_FAILED",
+            "MEMBER_CONTROL_FAILED",
+            "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED",
+            "TEST_REDIRECTED",
+            "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("BFLA inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("BFLA epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="BFLA",
+        capability="http-function-authorization-differential",
+        technique="BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
+        declared_steps=_FUNCTION_AUTHZ_STEPS,
+        detection_requirement=_FUNCTION_AUTHZ_DETECTION_REQUIREMENT)
 
 
 def evaluate_authn_detection(

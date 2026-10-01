@@ -11,6 +11,7 @@ from offensive.purple import (
     authn_blue_objective,
     bola_blue_objective,
     file_ingress_blue_objective,
+    function_authz_blue_objective,
     mass_assignment_blue_objective,
     nested_bola_blue_objective,
     stale_authority_blue_objective,
@@ -153,7 +154,7 @@ def _receipt(technique: str = "bola") -> bytes:
             "reason_code": "FOREIGN_CHILD_CANARY_OBSERVED",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
-    else:
+    elif technique == "stale-authority":
         experiment_id = "PURPLE-CLI-STALE-001"
         capability = "http-stale-authority-differential"
         steps = (
@@ -172,6 +173,21 @@ def _receipt(technique: str = "bola") -> bytes:
             "maximum_request_count": 7,
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
             "observations": [{"step": step} for step in steps],
+        }
+    else:
+        experiment_id = "PURPLE-CLI-BFLA-001"
+        capability = "http-function-authorization-differential"
+        objective = function_authz_blue_objective(experiment_id)
+        extra = {
+            "reason_code": "MEMBER_OBSERVED_ADMIN_CANARY",
+            "controls": {
+                "admin_control_passed": True,
+                "member_control_passed": True,
+            },
+            "request_count": 3,
+            "maximum_request_count": 3,
+            "method": "GET",
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
     return json.dumps(
         {
@@ -212,12 +228,14 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
         )
     elif technique == "nested-bola":
         objective = nested_bola_blue_objective("PURPLE-CLI-NESTED-001")
-    else:
+    elif technique == "stale-authority":
         receipt = json.loads(_receipt(technique))
         objective = stale_authority_blue_objective(
             "PURPLE-CLI-STALE-001",
             tuple(item["step"] for item in receipt["observations"]),
         )
+    else:
+        objective = function_authz_blue_objective("PURPLE-CLI-BFLA-001")
     value = {
         "schema_version": 1,
         "exercise_marker": objective["exercise_marker"],
@@ -273,6 +291,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         "mass-assignment",
         "nested-bola",
         "stale-authority",
+        "function-authz",
     ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
