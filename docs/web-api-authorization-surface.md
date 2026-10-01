@@ -9,10 +9,11 @@ low-privilege actor, privileged observer.
 
 Resources: protected route, owned object, peer object, parent-scoped child,
 allowed property, protected property, tenant collection, member function,
-administrative function, scope-protected resource, tenant export.
+administrative function, scope-protected resource, tenant export,
+asynchronous export job.
 
-Actions: read, list, search, export, and update. Share, transfer, invite, revoke,
-restore and stale-session use are not yet covered.
+Actions: create, read, list, search, download, export, update, and delete.
+Share, transfer, invite, revoke, restore and stale-session use are not yet covered.
 
 ## Matrix
 
@@ -30,6 +31,8 @@ restore and stale-session use are not yet covered.
 | Narrow-scope token | Scope-protected resource | Read | Denied | Token-scope negative cell; only the credential changes from the broad control |
 | Authenticated member, tenant Alpha | Tenant Bravo search result | Search | Denied | Search-isolation negative cell; the Bravo search request changes only its credential |
 | Authenticated member, tenant Alpha | Tenant Bravo export | Export | Denied | Export-isolation negative cell; Alpha replays the exact Bravo export path with only its credential changed; foreign canary required |
+| Authenticated member, tenant Alpha | Own async export job | Create / read / download / delete | Allowed | Lifecycle control; job is disposable and deletion must be verified by read-back |
+| Authenticated member, tenant Alpha | Tenant Bravo async export job | Download | Denied | Async-export negative cell; Alpha replays the exact Bravo job download path with only its credential changed; foreign canary required |
 | Anonymous / invalid credential | Publicly reachable mutable resource | Update | Denied | State-change differential with authenticated read-back and restoration |
 | Low-privilege actor | Own allowed property | Update | Allowed | Mass-assignment positive control |
 | Low-privilege actor | Own protected property | Update | Denied | Mass-assignment negative cell with observer read-back |
@@ -38,7 +41,7 @@ restore and stale-session use are not yet covered.
 Cells not tested remain unknown. In particular, the matrix does not cover
 multi-node revocation propagation, same-tenant role changes, child writes,
 share actions, inference from error differences, browser-only
-controls, asynchronous jobs, GraphQL, or remote production targets.
+controls, cross-tenant job-status reads, GraphQL, or remote production targets.
 
 ## Findings
 

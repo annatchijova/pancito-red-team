@@ -20,6 +20,7 @@ from offensive.purple import (
     evaluate_scope_authz_detection,
     evaluate_search_authz_detection,
     evaluate_export_authz_detection,
+    evaluate_async_export_authz_detection,
     evaluate_file_ingress_detection,
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
@@ -188,6 +189,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "scope-authz",
             "search-authz",
             "export-authz",
+            "async-export-authz",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -211,6 +213,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "scope-authz": evaluate_scope_authz_detection,
             "search-authz": evaluate_search_authz_detection,
             "export-authz": evaluate_export_authz_detection,
+            "async-export-authz": evaluate_async_export_authz_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {

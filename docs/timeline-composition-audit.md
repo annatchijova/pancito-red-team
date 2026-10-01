@@ -2,9 +2,10 @@
 
 **Date:** 2026-10-01  
 **Method:** abductive engineering and adversarial induction  
-**Vulnerable base:** `main` at `209db4d`; no timeline fix was present  
-**Epistemic result:** `FALSIFIED` prediction / confirmed detection gap under the
-stated threat model
+**Original vulnerable base:** `main` at `209db4d`
+**Original result:** confirmed synthetic-contract detection gap
+**Current workspace result:** remediated in the uncommitted audit working tree;
+synthetic regression now passes
 
 ## Threat model
 
@@ -14,7 +15,7 @@ stated threat model
 - The crossed boundary is the summary contract between SIFT evidence producers
   and `UnifiedTimelineEngine`.
 
-## Finding
+## Historical finding
 
 **Bucket:** software defect / Blue detection gap  
 **Severity:** unrated; downstream impact on a sealed verdict was not tested
@@ -56,10 +57,32 @@ Observed:
 | `MISSING_MFT` | `MEMORY_WITHOUT_DISK` | `MEMORY_WITHOUT_DISK` | `DETECTED` |
 | `PRODUCTION_SHAPED_PAIR` | `CAUSAL_INVERSION` | `MEMORY_WITHOUT_DISK` | `MISSED` |
 
-The production pair became `tool:MEMORY_FORENSICS` and `tool:MFT_ANALYZER`,
-both at timestamp `0`. The experiment therefore falsified the prediction that
-the current producer contracts preserve enough identity for causal
-correlation. It did not test or claim that an attacker can alter a seal.
+The original production pair became `tool:MEMORY_FORENSICS` and
+`tool:MFT_ANALYZER`, both at timestamp `0`. The experiment therefore falsified
+the prediction that the then-current producer contracts preserved enough
+identity for causal correlation. It did not test or claim that an attacker can
+alter a seal.
+
+## Remediation and retest
+
+The producer contracts now emit `correlation_entity` only when the relevant
+Memory process image or MFT anomaly filename reduces to exactly one basename.
+The timeline consumes that explicit candidate identity and carries the
+corresponding process-create / latest-anomaly timestamp. Multiple or missing
+subjects emit no correlation identity, so the engine falls back to its prior
+tool-level grouping instead of merging ambiguous records. Metadata labels this
+basis as a candidate; basename equality is not proof of process identity.
+
+Retest:
+
+```bash
+python3 -m pytest tests/test_timeline_evasion.py tests/test_timeline_evasion_cli.py -q
+```
+
+The production-shaped pair now observes `CAUSAL_INVERSION` at timestamps
+`1735689600` and `1735690001`, while the shared-entity and missing-MFT controls
+remain detected. This is a synthetic regression result, not validation against
+a real memory image or `$MFT`; downstream verdict impact remains untested.
 
 ## Reproducibility
 
@@ -76,13 +99,14 @@ correlation. It did not test or claim that an attacker can alter a seal.
 
 | Vector | Result | Why |
 |---|---|---|
-| Causal rule absent | Falsified | The shared-entity control triggered it. |
-| Missing-source rule inactive | Falsified | The Memory-only control triggered it. |
+| Causal rule absent | Falsified | The shared-entity control triggers it. |
+| Missing-source rule inactive | Falsified | The Memory-only control triggers it. |
+| Producer identity is always ambiguous | Falsified for one unique basename | The production-shaped regression pair now shares a candidate identity. |
 
 ## Known blind spots
 
 The experiment does not use a real memory image or `$MFT`, does not prove that
-all SIFT producer pairs lose identity, and does not measure whether this missed
-correlation changes the sealed adjudication path. Those remain separate
-hypotheses.
-
+basename equality is a true process identity, does not prove that all SIFT
+producer pairs preserve identity, and does not measure whether the correlation
+changes the sealed adjudication path. Ambiguous multi-subject summaries remain
+uncorrelated by design. Those remain separate hypotheses.

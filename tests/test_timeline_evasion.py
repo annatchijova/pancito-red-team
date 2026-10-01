@@ -27,24 +27,45 @@ def _has_float(value: object) -> bool:
     return False
 
 
-def test_production_shaped_pair_falsifies_cross_source_correlation():
+def test_production_shaped_pair_preserves_unique_cross_source_correlation():
     receipt = run_timeline_evasion_differential(_plan())
 
-    assert receipt["epistemic_level"] == "FALSIFIED"
-    assert receipt["reason_code"] == "PRODUCTION_METADATA_LOSES_CORRELATION_IDENTITY"
+    assert receipt["epistemic_level"] == "CONFIRMED_BY_INDUCTION"
+    assert receipt["reason_code"] == "PRODUCTION_METADATA_PRESERVES_CORRELATION_IDENTITY"
     assert receipt["cell_outcomes"] == {
         "CONTROL_SHARED_ENTITY": "DETECTED",
         "MISSING_MFT": "DETECTED",
-        "PRODUCTION_SHAPED_PAIR": "MISSED",
+        "PRODUCTION_SHAPED_PAIR": "DETECTED",
     }
     assert receipt["observed_signals"] == {
         "CONTROL_SHARED_ENTITY": ["CAUSAL_INVERSION"],
         "MISSING_MFT": ["MEMORY_WITHOUT_DISK"],
-        "PRODUCTION_SHAPED_PAIR": ["MEMORY_WITHOUT_DISK"],
+        "PRODUCTION_SHAPED_PAIR": ["CAUSAL_INVERSION"],
     }
     production = receipt["observation_facts"]["PRODUCTION_SHAPED_PAIR"]
-    assert production["entity_ids"] == ["tool:MEMORY_FORENSICS", "tool:MFT_ANALYZER"]
-    assert production["timestamps"] == [0, 0]
+    assert production["entity_ids"] == [
+        "process-image:pancito-agent.exe", "process-image:pancito-agent.exe"
+    ]
+    assert production["timestamps"] == [1735689600, 1735690001]
+
+
+def test_ambiguous_summary_subjects_do_not_force_correlation():
+    from offensive.timeline_evasion import _memory_result, _mft_result
+    from sift.memory_forensics import ProcessRecord
+
+    memory = _memory_result()
+    memory.processes.append(ProcessRecord(
+        pid=4243, ppid=4, name="different.exe", path="C:/Pancito/different.exe",
+        cmdline="different.exe", create_time="2025-01-01T00:01:00Z",
+        session_id=1, parent_name="services.exe", threads=1, handles=1,
+    ))
+    mft = _mft_result()
+    mft.timestomp_entries.append({"record": 2, "filename": "other.exe", "anomalies": []})
+
+    assert memory.to_signal().metadata["correlation_entity"] is None
+    assert memory.to_signal().metadata["correlation_basis"] == "AMBIGUOUS_OR_UNAVAILABLE"
+    assert mft.to_signal().metadata["correlation_entity"] is None
+    assert mft.to_signal().metadata["correlation_basis"] == "AMBIGUOUS_OR_UNAVAILABLE"
 
 
 def test_timeline_receipt_is_deterministic_unsealed_and_scoped():

@@ -33,6 +33,12 @@ def client():
         yield c
 
 
+def test_service_test_harness_uses_an_isolated_memory_store():
+    from service.app import _CASE_STORE
+
+    assert _CASE_STORE.backend == "memory"
+
+
 def test_the_cycle_endpoint_is_rate_limited(client):
     """An agentic cycle calls a paid model, so a public endpoint must not be a way to
     burn the quota."""

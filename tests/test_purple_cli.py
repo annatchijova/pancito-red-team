@@ -18,6 +18,7 @@ from offensive.purple import (
     scope_authz_blue_objective,
     search_authz_blue_objective,
     export_authz_blue_objective,
+    async_export_authz_blue_objective,
     stale_authority_blue_objective,
     state_change_blue_objective,
 )
@@ -220,6 +221,28 @@ def _receipt(technique: str = "bola") -> bytes:
             "method": "GET",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
+    elif technique == "async-export-authz":
+        experiment_id = "PURPLE-CLI-ASYNC-EXPORT-001"
+        capability = "http-async-export-authorization-lifecycle"
+        objective = async_export_authz_blue_objective(experiment_id)
+        steps = objective["expected_steps"]
+        digest = "0" * 64
+        events = []
+        for step in steps:
+            method = "POST" if step.endswith("CREATE") else "DELETE" if step.endswith("CLEANUP") and not step.endswith("VERIFY") else "GET"
+            events.append({"step": step, "method": method, "status": 200,
+                           "request_succeeded": True, "truncated": False,
+                           "oracle_satisfied": True if "CROSS_TENANT" not in step else True,
+                           "canary_observed": True if "DOWNLOAD" in step else None,
+                           "other_tenant_canary_observed": False if "DOWNLOAD" in step else None,
+                           "job_id_sha256": digest, "response_capture_sha256": digest})
+        extra = {
+            "reason_code": "ALPHA_OBSERVED_BRAVO_ASYNC_EXPORT_CANARY",
+            "epistemic_level": "CONFIRMED_BY_INDUCTION",
+            "events": events, "request_count": len(events), "maximum_request_count": 12,
+            "method": "MIXED", "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+            "cleanup_status": "RESTORED_TO_BASELINE", "manual_cleanup_count": 0,
+        }
     elif technique == "scope-authz":
         experiment_id = "PURPLE-CLI-SCOPE-001"
         capability = "http-token-scope-authorization-differential"
@@ -303,6 +326,8 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
         objective = scope_authz_blue_objective("PURPLE-CLI-SCOPE-001")
     elif technique == "export-authz":
         objective = export_authz_blue_objective("PURPLE-CLI-EXPORT-001")
+    elif technique == "async-export-authz":
+        objective = async_export_authz_blue_objective("PURPLE-CLI-ASYNC-EXPORT-001")
     else:
         objective = search_authz_blue_objective("PURPLE-CLI-SEARCH-001")
     value = {
@@ -365,6 +390,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         "scope-authz",
         "search-authz",
         "export-authz",
+        "async-export-authz",
     ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
@@ -409,6 +435,47 @@ def test_cli_marker_mismatch_fails_without_partial_stdout(tmp_path, capsys):
     assert exit_code == 2
     assert captured.out == ""
     assert "marker" in captured.err
+
+
+def test_async_export_evaluator_rejects_forged_request_budget(tmp_path, capsys):
+    receipt = json.loads(_receipt("async-export-authz"))
+    receipt["request_count"] = 10
+    receipt_path = tmp_path / "receipt.json"
+    observation_path = tmp_path / "observation.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    observation_path.write_bytes(_observation("async-export-authz"))
+
+    exit_code = main(["async-export-authz", str(receipt_path), str(observation_path)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "request budget" in captured.err
+
+
+def test_async_export_denial_requires_post_replay_owner_control(tmp_path, capsys):
+    receipt = json.loads(_receipt("async-export-authz"))
+    receipt["epistemic_level"] = "FALSIFIED"
+    receipt["reason_code"] = "ALPHA_BRAVO_ASYNC_EXPORT_DENIED"
+    events = {event["step"]: event for event in receipt["events"]}
+    test_event = events["CROSS_TENANT_JOB_DOWNLOAD_TEST"]
+    test_event["status"] = 403
+    test_event["oracle_satisfied"] = False
+    test_event["canary_observed"] = False
+    receipt["events"] = [event for event in receipt["events"]
+                         if event["step"] != "BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL"]
+    receipt["request_count"] = len(receipt["events"])
+    receipt_path = tmp_path / "receipt.json"
+    observation_path = tmp_path / "observation.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    observation_path.write_bytes(_observation("async-export-authz"))
+
+    exit_code = main(["async-export-authz", str(receipt_path), str(observation_path)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert captured.out == ""
+    assert "post-test control" in captured.err
 
 
 def test_blue_observation_reader_rejects_symlinks(tmp_path):

@@ -44,6 +44,20 @@ _EXPORT_AUTHZ_STEPS = (
     "BRAVO_EXPORT_CONTROL",
     "CROSS_TENANT_EXPORT_TEST",
 )
+_ASYNC_EXPORT_AUTHZ_STEPS = (
+    "ALPHA_JOB_CREATE",
+    "BRAVO_JOB_CREATE",
+    "ALPHA_JOB_STATUS_CONTROL",
+    "ALPHA_JOB_DOWNLOAD_CONTROL",
+    "BRAVO_JOB_STATUS_CONTROL",
+    "BRAVO_JOB_DOWNLOAD_CONTROL",
+    "CROSS_TENANT_JOB_DOWNLOAD_TEST",
+    "BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL",
+    "ALPHA_JOB_CLEANUP",
+    "ALPHA_JOB_CLEANUP_VERIFY",
+    "BRAVO_JOB_CLEANUP",
+    "BRAVO_JOB_CLEANUP_VERIFY",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -139,6 +153,11 @@ _SEARCH_AUTHZ_DETECTION_REQUIREMENT = (
 _EXPORT_AUTHZ_DETECTION_REQUIREMENT = (
     "Alert when an export contains records outside the authenticated tenant. "
     "Required data: subject tenant, export job or route, resolved data scope, "
+    "authorization decision, and exported record ownership."
+)
+_ASYNC_EXPORT_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when a principal reads or downloads an asynchronous export job outside "
+    "its tenant. Required data: subject tenant, job owner, job state, download route, "
     "authorization decision, and exported record ownership."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
@@ -347,6 +366,31 @@ def export_authz_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BRAVO_EXPORT_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _EXPORT_AUTHZ_DETECTION_REQUIREMENT,
+    }
+
+
+def async_export_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue telemetry for asynchronous export creation and retrieval."""
+    return {
+        "technique": "CROSS_TENANT_ASYNC_EXPORT_JOB_ACCESS",
+        "attack_mapping": "OWASP_API1_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_SUBJECT_ROUTE_AND_JOB_ID_DIGEST",
+        "expected_steps": list(_ASYNC_EXPORT_AUTHZ_STEPS),
+        "expected_event_count": len(_ASYNC_EXPORT_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "export-job access log with authenticated subject, tenant, job, state, and status",
+            "download authorization decision bound to the job owner and exported records",
+            "post-test owner download control to distinguish denial from job expiry",
+            "cleanup and read-back audit for both disposable lab jobs",
+        ],
+        "true_positive_step": "CROSS_TENANT_JOB_DOWNLOAD_TEST",
+        "benign_twin_step": "BRAVO_JOB_DOWNLOAD_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _ASYNC_EXPORT_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -1030,6 +1074,160 @@ def evaluate_export_authz_detection(
         capability="http-export-authorization-differential",
         technique="CROSS_TENANT_EXPORT_ACCESS", declared_steps=_EXPORT_AUTHZ_STEPS,
         detection_requirement=_EXPORT_AUTHZ_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_async_export_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Validate the lifecycle receipt before evaluating its Blue telemetry."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("ASYNC_EXPORT_AUTHZ receipt must be an object")
+    events = receipt.get("events")
+    count = receipt.get("request_count")
+    if (
+        not isinstance(events, list) or len(events) != count
+        or isinstance(count, bool) or not isinstance(count, int)
+        or not 0 <= count <= 12 or receipt.get("maximum_request_count") != 12
+    ):
+        raise BlueObservationError("async export request budget is inconsistent")
+    expected_methods = {
+        "ALPHA_JOB_CREATE": "POST", "BRAVO_JOB_CREATE": "POST",
+        "ALPHA_JOB_STATUS_CONTROL": "GET", "ALPHA_JOB_DOWNLOAD_CONTROL": "GET",
+        "BRAVO_JOB_STATUS_CONTROL": "GET", "BRAVO_JOB_DOWNLOAD_CONTROL": "GET",
+        "CROSS_TENANT_JOB_DOWNLOAD_TEST": "GET",
+        "BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL": "GET", "ALPHA_JOB_CLEANUP": "DELETE",
+        "ALPHA_JOB_CLEANUP_VERIFY": "GET", "BRAVO_JOB_CLEANUP": "DELETE",
+        "BRAVO_JOB_CLEANUP_VERIFY": "GET",
+    }
+    order = {step: index for index, step in enumerate(_ASYNC_EXPORT_AUTHZ_STEPS)}
+    previous = -1
+    event_by_step: dict[str, dict[str, object]] = {}
+    for event in events:
+        if not isinstance(event, dict) or set(event) != {
+            "step", "method", "status", "request_succeeded", "truncated",
+            "oracle_satisfied", "canary_observed", "other_tenant_canary_observed",
+            "job_id_sha256", "response_capture_sha256",
+        }:
+            raise BlueObservationError("async export event shape is inconsistent")
+        step = event.get("step")
+        if step not in expected_methods or step in event_by_step:
+            raise BlueObservationError("async export event step is invalid or duplicated")
+        if order[step] <= previous or event.get("method") != expected_methods[step]:
+            raise BlueObservationError("async export event order or method is inconsistent")
+        if not isinstance(event.get("request_succeeded"), bool) or not isinstance(
+            event.get("truncated"), bool
+        ):
+            raise BlueObservationError("async export event observation flags are invalid")
+        status = event.get("status")
+        if status is not None and (
+            isinstance(status, bool) or not isinstance(status, int) or not 100 <= status <= 599
+        ):
+            raise BlueObservationError("async export event status is invalid")
+        if event["request_succeeded"] != (status is not None):
+            raise BlueObservationError("async export request status is inconsistent")
+        if event.get("oracle_satisfied") is not None and not isinstance(
+            event.get("oracle_satisfied"), bool
+        ):
+            raise BlueObservationError("async export event oracle is invalid")
+        for field in ("canary_observed", "other_tenant_canary_observed"):
+            if event.get(field) is not None and not isinstance(event.get(field), bool):
+                raise BlueObservationError("async export canary observation is invalid")
+        is_download = step in {
+            "ALPHA_JOB_DOWNLOAD_CONTROL", "BRAVO_JOB_DOWNLOAD_CONTROL",
+            "CROSS_TENANT_JOB_DOWNLOAD_TEST",
+            "BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL",
+        }
+        canary_flags_are_boolean = all(
+            isinstance(event.get(field), bool)
+            for field in ("canary_observed", "other_tenant_canary_observed")
+        )
+        canary_flags_are_absent = all(
+            event.get(field) is None
+            for field in ("canary_observed", "other_tenant_canary_observed")
+        )
+        if (is_download and not canary_flags_are_boolean) or (
+            not is_download and not canary_flags_are_absent
+        ):
+            raise BlueObservationError("async export canary fields contradict event type")
+        if is_download and event.get("oracle_satisfied") != event.get("canary_observed"):
+            raise BlueObservationError("async export oracle contradicts canary observation")
+        if event.get("oracle_satisfied") is True and (
+            not event["request_succeeded"] or event["truncated"]
+        ):
+            raise BlueObservationError("async export oracle contradicts request integrity")
+        digest = event.get("job_id_sha256")
+        if digest is not None and (
+            not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        ):
+            raise BlueObservationError("async export job identifier digest is invalid")
+        response_digest = event.get("response_capture_sha256")
+        if not isinstance(response_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", response_digest):
+            raise BlueObservationError("async export response capture digest is invalid")
+        event_by_step[step] = event
+        previous = order[step]
+    if receipt.get("method") is not None and receipt.get("method") != "MIXED":
+        raise BlueObservationError("async export method declaration is inconsistent")
+    if receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("async export impact contract is inconsistent")
+    cleanup_status = receipt.get("cleanup_status")
+    cleanup_count = receipt.get("manual_cleanup_count")
+    if (
+        cleanup_status not in {"RESTORED_TO_BASELINE", "MANUAL_ACTION_REQUIRED"}
+        or isinstance(cleanup_count, bool) or not isinstance(cleanup_count, int)
+        or cleanup_count < 0
+        or (cleanup_status == "RESTORED_TO_BASELINE") != (cleanup_count == 0)
+    ):
+        raise BlueObservationError("async export cleanup status is inconsistent")
+    if cleanup_status == "RESTORED_TO_BASELINE" and any(
+        step not in event_by_step or event_by_step[step].get("oracle_satisfied") is not True
+        for step in ("ALPHA_JOB_CLEANUP_VERIFY", "BRAVO_JOB_CLEANUP_VERIFY")
+    ):
+        raise BlueObservationError("async export cleanup claim lacks both verified deletions")
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level in {"CONFIRMED_BY_INDUCTION", "FALSIFIED"}:
+        required = (
+            "ALPHA_JOB_CREATE", "BRAVO_JOB_CREATE", "ALPHA_JOB_STATUS_CONTROL",
+            "ALPHA_JOB_DOWNLOAD_CONTROL", "BRAVO_JOB_STATUS_CONTROL",
+            "BRAVO_JOB_DOWNLOAD_CONTROL", "CROSS_TENANT_JOB_DOWNLOAD_TEST",
+        )
+        if any(step not in event_by_step for step in required):
+            raise BlueObservationError("async export decisive result lacks controls")
+        if any(event_by_step[step].get("oracle_satisfied") is not True for step in required[:-1]):
+            raise BlueObservationError("async export decisive result has failed controls")
+        test = event_by_step[required[-1]]
+        if not test.get("request_succeeded") or test.get("truncated"):
+            raise BlueObservationError("async export test request is not fully observed")
+        if level == "CONFIRMED_BY_INDUCTION":
+            if reason != "ALPHA_OBSERVED_BRAVO_ASYNC_EXPORT_CANARY" or test.get(
+                "oracle_satisfied"
+            ) is not True:
+                raise BlueObservationError("async export confirmed result is inconsistent")
+        elif reason != "ALPHA_BRAVO_ASYNC_EXPORT_DENIED" or test.get("status") not in {401, 403, 404}:
+            raise BlueObservationError("async export falsified result is inconsistent")
+        elif (
+            "BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL" not in event_by_step
+            or event_by_step["BRAVO_JOB_POST_TEST_DOWNLOAD_CONTROL"].get("oracle_satisfied") is not True
+        ):
+            raise BlueObservationError("async export denial lacks a successful post-test control")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "ALPHA_JOB_CREATE_FAILED", "BRAVO_JOB_CREATE_FAILED",
+            "ALPHA_JOB_CONTROL_FAILED", "ALPHA_DOWNLOAD_CONTROL_FAILED",
+            "BRAVO_JOB_CONTROL_FAILED", "BRAVO_DOWNLOAD_CONTROL_FAILED",
+            "BRAVO_POST_TEST_CONTROL_FAILED",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED",
+            "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("async export inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("async export epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="ASYNC_EXPORT_AUTHZ",
+        capability="http-async-export-authorization-lifecycle",
+        technique="CROSS_TENANT_ASYNC_EXPORT_JOB_ACCESS",
+        declared_steps=_ASYNC_EXPORT_AUTHZ_STEPS,
+        detection_requirement=_ASYNC_EXPORT_AUTHZ_DETECTION_REQUIREMENT,
     )
 
 

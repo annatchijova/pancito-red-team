@@ -63,6 +63,7 @@ agentic security product uses the first design.
 | Token scope enforcement | Can a narrow token read a resource reserved for a broader scope? | Broad and narrow controls precede a credential-only replay; the privileged canary, not `200`, proves excess authority |
 | Search isolation | Can one tenant's search return another tenant's result? | Two tenant controls precede a credential-only replay of the same query; the foreign result canary proves disclosure |
 | Export isolation | Can one tenant retrieve another tenant's generated export? | Two tenant export controls precede a credential-only replay; only the foreign export canary proves disclosure, while empty success is inconclusive |
+| [Async export job isolation](offensive/async_export_authz.py) | Can one tenant download another tenant's completed export job? | Creates and verifies cleanup of one disposable job per tenant; only a credential-only replay returning Bravo's canary confirms exposure ([tests](tests/test_async_export_authz.py)) |
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | Mass assignment / BOPLA | Can a low-privilege actor modify a protected property? | Allowed-field control, observer read-back, and verified two-field restoration |
@@ -123,6 +124,8 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
   [collection isolation](tests/test_collection_authz_differential.py),
   [token scope enforcement](tests/test_scope_authz_differential.py),
   [search isolation capability](offensive/search_authz.py),
+  [direct export isolation](tests/test_export_authz_differential.py),
+  [asynchronous export jobs](tests/test_async_export_authz.py),
   [authentication](tests/test_authn_differential.py),
   [state-change](tests/test_state_change_differential.py),
   [mass-assignment](tests/test_mass_assignment_differential.py), and

@@ -89,6 +89,5 @@ def test_cli_is_hash_seed_stable_and_reports_falsification(tmp_path, capsys):
         outputs.append(completed.stdout)
     assert outputs[0] == outputs[1]
     receipt = json.loads(outputs[0])
-    assert receipt["epistemic_level"] == "FALSIFIED"
+    assert receipt["epistemic_level"] == "CONFIRMED_BY_INDUCTION"
     assert receipt["part_of_forensic_verdict"] is False
-

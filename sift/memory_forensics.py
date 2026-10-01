@@ -255,6 +255,34 @@ class MemoryAnalysisResult:
                     "finding_types": [],
                 },
             )
+        named_subjects = [finding.process_name for finding in self.findings]
+        if not named_subjects:
+            named_subjects = [process.name for process in self.processes]
+        correlation_names = sorted({
+            name.strip().replace("\\", "/").rsplit("/", 1)[-1].casefold()
+            for name in named_subjects
+            if isinstance(name, str) and name.strip()
+        })
+        correlation_entity = (
+            f"process-image:{correlation_names[0]}"
+            if len(correlation_names) == 1 else None
+        )
+        correlation_timestamp = None
+        if correlation_entity:
+            matching_processes = [
+                process for process in self.processes
+                if isinstance(process.name, str)
+                and process.name.strip().replace("\\", "/").rsplit("/", 1)[-1].casefold()
+                == correlation_names[0]
+            ]
+            timestamps = []
+            for process in matching_processes:
+                try:
+                    timestamps.append(_parse_iso_timestamp(process.create_time))
+                except (ValueError, TypeError, AttributeError, OverflowError):
+                    continue
+            if timestamps:
+                correlation_timestamp = max(timestamps)
         return SignalOutput(
             tool_name=TOOL_NAME, value=float(z) / Z_CLIP_MAX if Z_CLIP_MAX > 0 else 0.0,
             z_score=float(z), confidence=float(conf),
@@ -264,6 +292,12 @@ class MemoryAnalysisResult:
                 "critical_count": len([f for f in self.findings if f.severity >= Fraction(9, 10)]),
                 "artifact_reliability": str(ARTIFACT_RELIABILITY),
                 "artifact_type": "memory",
+                # A single affected image is a correlation candidate, not proof
+                # of process identity. Ambiguous summaries intentionally omit it.
+                "correlation_entity": correlation_entity,
+                "correlation_basis": "unique_affected_process_image"
+                if correlation_entity else "AMBIGUOUS_OR_UNAVAILABLE",
+                "timestamp": correlation_timestamp,
                 "finding_types": sorted(list(set(f.anomaly_type for f in self.findings))),
             }
         )

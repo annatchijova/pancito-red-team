@@ -73,15 +73,20 @@ class MFTAnalysisResult:
             if isinstance(v, int) and v > latest:
                 latest = v
         for t in self.timestomp_entries:
-            for key in ("si", "fn"):
-                v = t.get(key)
-                if isinstance(v, str):
-                    try:
-                        ts = _parse_iso_timestamp(v)
-                    except ValueError:
-                        continue
-                    if ts > latest:
-                        latest = ts
+            candidates = [t]
+            nested = t.get("anomalies")
+            if isinstance(nested, list):
+                candidates.extend(item for item in nested if isinstance(item, dict))
+            for candidate in candidates:
+                for key in ("si", "fn"):
+                    v = candidate.get(key)
+                    if isinstance(v, str):
+                        try:
+                            ts = _parse_iso_timestamp(v)
+                        except (ValueError, TypeError, AttributeError, OverflowError):
+                            continue
+                        if ts > latest:
+                            latest = ts
         return latest
 
     def to_signal(self) -> SignalOutput:
@@ -93,6 +98,24 @@ class MFTAnalysisResult:
         elif self.ads_entries:
             z = Fraction(21, 10)
         conf = min(self.composite_score * Fraction(11, 10), Fraction(95, 100))
+        affected_names = {
+            entry.get("filename")
+            for entry in (*self.timestomp_entries, *self.sequence_anomalies)
+            if isinstance(entry, dict) and isinstance(entry.get("filename"), str)
+            and entry["filename"].strip()
+        }
+        affected_names.update(
+            record.filename for record in (*self.hardlink_anomalies, *self.ads_entries)
+            if isinstance(record.filename, str) and record.filename.strip()
+        )
+        correlation_names = sorted({
+            name.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+            for name in affected_names
+        })
+        correlation_entity = (
+            f"process-image:{correlation_names[0]}"
+            if len(correlation_names) == 1 else None
+        )
         return SignalOutput(
             tool_name=TOOL_NAME, value=float(z) / Z_CLIP_MAX if Z_CLIP_MAX > 0 else 0.0,
             z_score=float(z), confidence=float(conf),
@@ -103,6 +126,11 @@ class MFTAnalysisResult:
                 "sequence_anomalies": len(self.sequence_anomalies),
                 # P2-E (Tanda B): alimenta el UnifiedTimelineEngine.
                 "timestamp": self._latest_anomaly_ts(),
+                # Filename matching is a weak candidate only; do not collapse
+                # distinct or ambiguous MFT anomaly subjects into one entity.
+                "correlation_entity": correlation_entity,
+                "correlation_basis": "unique_affected_filename_basename"
+                if correlation_entity else "AMBIGUOUS_OR_UNAVAILABLE",
             }
         )
 

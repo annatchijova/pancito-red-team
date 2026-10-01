@@ -12,7 +12,7 @@ custody, agent, and service modules. The supported offensive product surface is:
 
 1. deterministic replay of committed hostile telemetry;
 2. passive local OpenAPI triage and provenance-preserving handoff;
-3. twelve curated HTTP differentials restricted to literal loopback origins;
+3. thirteen curated HTTP differentials restricted to literal loopback origins;
 4. four offline SIFT differentials over module-owned synthetic data;
 5. deterministic Purple evaluation of operator-supplied Blue evidence; and
 6. optional model narration after consequential values already exist.
@@ -99,6 +99,8 @@ backend degradation is exposed through `/health`.
 | [offensive/collection_authz.py](offensive/collection_authz.py) | 3 GETs | Alpha and Bravo members each list their own canary-bearing collection | Alpha credential replaces Bravo's credential on the byte-identical Bravo path | Bravo canary is required; empty or redacted success remains inconclusive |
 | [offensive/scope_authz.py](offensive/scope_authz.py) | 3 GETs | Broad token reaches the privileged canary; narrow token reaches its allowed canary | Narrow token replaces the broad token on the otherwise identical privileged request | Privileged canary is required; scope names remain operator assertions |
 | [offensive/search_authz.py](offensive/search_authz.py) | 3 GETs | Alpha and Bravo searches return their distinct canaries | Alpha replays Bravo's exact query against the same search route | A foreign result canary is required; the query and response body are omitted from the receipt |
+| [offensive/export_authz.py](offensive/export_authz.py) | 3 GETs | Alpha and Bravo export their own canaries | Alpha replays Bravo's exact export path with only its credential changed | Foreign export canary required; empty success is inconclusive |
+| [offensive/async_export_authz.py](offensive/async_export_authz.py) | At most 12 POST/GET/DELETE requests | Creates, checks, downloads, and deletes one job per tenant; rechecks Bravo's download after replay | Alpha downloads Bravo's exact job path | Foreign canary confirms exposure; response bodies are discarded, bounded captures and job IDs are hashed, and unverified cleanup requires manual action |
 | [offensive/authn.py](offensive/authn.py) | 3 GETs | Valid credential returns the protected canary | Anonymous and invalid bearer | A status alone cannot confirm protected-data exposure |
 | [offensive/state_change.py](offensive/state_change.py) | At most 13 bounded requests | Baseline plus valid PATCH/read-back | Anonymous and invalid-bearer PATCH | Restore and authenticated restore verification after each observed mutation |
 | [offensive/mass_assignment.py](offensive/mass_assignment.py) | At most 9 bounded requests | Low-privilege actor changes one allowed field | The same actor submits one allowed and one protected field | Separate observer reads both fields, restores both, and verifies the baseline |
@@ -269,6 +271,9 @@ python3 -m offensive.search_authz_cli examples/search-authz.loopback.json
 python3 -m offensive.export_authz_cli --dry-run examples/export-authz.loopback.json
 python3 -m offensive.export_authz_cli examples/export-authz.loopback.json
 
+python3 -m offensive.async_export_authz_cli --dry-run examples/async-export-authz.loopback.json
+python3 -m offensive.async_export_authz_cli examples/async-export-authz.loopback.json
+
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json
 
@@ -304,6 +309,7 @@ python3 -m offensive.purple_cli collection-authz red-receipt.json blue-observati
 python3 -m offensive.purple_cli scope-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli search-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli export-authz red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli async-export-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli mass-assignment red-receipt.json blue-observation.json
@@ -388,6 +394,12 @@ verdict/         deterministic export surfaces
   receipts label it as an unverified operator assertion.
 - Active HTTP experiments are local-lab capabilities, not remote pentest
   automation.
+- The asynchronous export lifecycle creates at most two lab jobs and makes at
+  most twelve requests. It tests owner creation/status/download controls, one
+  cross-tenant download replay, and verified owner cleanup; it does not test
+  cross-tenant job-status reads. A lost create response is treated as a possible
+  orphan and requires manual review because the job ID is unknown. Each receipt
+  retains a SHA-256 of its bounded response capture, never the response body.
 - OpenAPI candidates describe an artifact and may not match deployed reality.
 - Purple observations are operator assertions and Purple derivations are
   unsealed.

@@ -156,6 +156,9 @@ class UnifiedTimelineEngine:
     def _extract_entity(self, signal: SignalOutput) -> str:
         """Extrae identificador de entidad del signal."""
         meta = signal.metadata if isinstance(signal.metadata, dict) else {}
+        correlation_entity = meta.get("correlation_entity")
+        if isinstance(correlation_entity, str) and correlation_entity.strip():
+            return correlation_entity
         pid = meta.get("pid", meta.get("PID", 0))
         if pid:
             return f"pid:{pid}"

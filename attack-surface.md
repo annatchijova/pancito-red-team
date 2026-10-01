@@ -2,13 +2,13 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `37f4fc3` and the current working tree.
+of base commit `cc5fd01` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Cross-tenant export disclosure | Tenant export route | AUTHENTICATED | Generated records, potentially containing a tenant-wide snapshot | Collection and search authorization do not establish that generated export bytes remain tenant-scoped; a bounded identical-path credential differential now exists | `offensive/export_authz.py` | Both tenant controls return only their own canaries and Alpha does not receive Bravo's canary | CANDIDATE |
+| 1 | Cross-tenant asynchronous export disclosure | Export-job download route | AUTHENTICATED | Completed tenant export and its potentially broad record set | The authorization matrix had no async-job cell; the bounded lifecycle creates both tenant controls, replays Bravo's download as Alpha, then rechecks Bravo's download control | `offensive/async_export_authz.py` | Both owner controls around the replay succeed, Alpha is denied Bravo's canary, and both jobs are deleted and verified absent | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -38,15 +38,17 @@ None. This artifact ranks capability gaps; it does not assert a target finding.
 - Action-level token scope was removed after its bounded token differential
   established a test contract. This closes an implementation gap, not a target finding.
 - Cross-tenant search was removed after its same-query differential established
-  a test contract; cross-tenant export is now the highest-ranked unclosed
-  authorization capability gap. Neither statement asserts a target finding.
+  a test contract; direct cross-tenant export was removed after its foreign-
+  canary differential established a test contract. Async export job retrieval
+  is now the highest-ranked unclosed authorization capability gap. These close
+  implementation gaps only; neither asserts a target finding.
 
 ## Not enumerated (coverage gaps)
 
 - Remote production exposure: active probing is not authorized by this scope.
 - Browser/client-side authorization: no browser harness was reviewed.
-- GraphQL, WebSocket, and asynchronous job surfaces: not yet represented by a
-  bounded capability contract.
+- GraphQL, WebSocket, and cross-tenant job-status reads: not yet represented by
+  a bounded capability contract.
 - Third-party SaaS and shared infrastructure: outside scope.
 
 ## Ranking rule used
