@@ -7,6 +7,8 @@ import pytest
 from offensive.purple import (
     BlueObservation,
     BlueObservationError,
+    authn_blue_objective,
+    evaluate_authn_detection,
     evaluate_bola_detection,
 )
 
@@ -227,3 +229,52 @@ def test_receipt_cannot_expand_the_declared_three_step_exercise():
 
     with pytest.raises(BlueObservationError, match="does not match"):
         evaluate_bola_detection(receipt, observation)
+
+
+def _authn_receipt(epistemic_level: str) -> dict[str, object]:
+    return {
+        "experiment_id": "AUTHN-PURPLE-001",
+        "epistemic_level": epistemic_level,
+        "blue_objective": authn_blue_objective("AUTHN-PURPLE-001"),
+        "model_used": False,
+        "part_of_forensic_verdict": False,
+    }
+
+
+def test_authn_blue_evaluation_keeps_prevention_and_detection_independent():
+    receipt = _authn_receipt("FALSIFIED")
+    objective = receipt["blue_objective"]
+    observation = BlueObservation(
+        exercise_marker=objective["exercise_marker"],
+        collection_status="COMPLETE",
+        observed_steps=tuple(objective["expected_steps"]),
+        alert_status="NOT_FIRED",
+        alert_reference=None,
+        alert_depends_on_exercise_marker=False,
+    )
+
+    result = evaluate_authn_detection(receipt, observation)
+
+    assert result["preventive_outcome"] == "PREVENTED"
+    assert result["visibility_outcome"] == "VISIBLE"
+    assert result["detection_outcome"] == "LOGGED_NOT_ALERTED"
+    assert "authentication outcome" in result["detection_requirement"]
+
+
+def test_authn_behavior_alert_earns_detection_for_failed_prevention():
+    receipt = _authn_receipt("CONFIRMED_BY_INDUCTION")
+    objective = receipt["blue_objective"]
+    observation = BlueObservation(
+        exercise_marker=objective["exercise_marker"],
+        collection_status="COMPLETE",
+        observed_steps=tuple(objective["expected_steps"]),
+        alert_status="FIRED",
+        alert_reference="SIEM-AUTHN-4001",
+        alert_depends_on_exercise_marker=False,
+    )
+
+    result = evaluate_authn_detection(receipt, observation)
+
+    assert result["preventive_outcome"] == "FAILED_TO_PREVENT"
+    assert result["detection_outcome"] == "DETECTED"
+    assert result["coverage_claim"] == "EARNED_FOR_THIS_EXERCISE"
