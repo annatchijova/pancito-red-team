@@ -28,8 +28,16 @@ class _LabHandler(BaseHTTPRequestHandler):
     vulnerable = False
     redirect_test = False
     leak_hits = 0
+    exercise_events = []
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler contract
+        type(self).exercise_events.append(
+            {
+                "marker": self.headers.get("X-Pancito-Exercise"),
+                "step": self.headers.get("X-Pancito-Step"),
+                "path": self.path,
+            }
+        )
         token = self.headers.get("Authorization", "")
         if self.path == "/objects/a":
             if token == f"Bearer {OWNER_TOKEN}":
@@ -74,6 +82,7 @@ def bola_lab():
     _LabHandler.vulnerable = False
     _LabHandler.redirect_test = False
     _LabHandler.leak_hits = 0
+    _LabHandler.exercise_events = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), _LabHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -268,3 +277,25 @@ def test_cli_manifest_executes_end_to_end_without_printing_secrets(
     assert PEER_TOKEN not in captured.out
     assert OWNER_CANARY not in captured.out
     assert PEER_CANARY not in captured.out
+
+
+def test_requests_are_marked_for_blue_correlation_without_counting_as_detection(
+    bola_lab,
+):
+    origin, handler = bola_lab
+    handler.vulnerable = True
+    owner, peer = _credentials()
+
+    result = run_bola_experiment(_plan(origin), owner=owner, peer=peer)
+
+    objective = result["blue_objective"]
+    assert objective["correlation_marker_is_detection"] is False
+    assert objective["expected_telemetry_status"] == "HYPOTHESIS_NOT_YET_OBSERVED"
+    assert [event["step"] for event in handler.exercise_events] == [
+        "OWNER_CONTROL",
+        "PEER_CONTROL",
+        "CROSS_PRINCIPAL_TEST",
+    ]
+    assert {event["marker"] for event in handler.exercise_events} == {
+        objective["exercise_marker"]
+    }

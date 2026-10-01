@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from urllib.parse import SplitResult, urlsplit
 
 from offensive.handoff import BolaCandidateHandoff, path_matches_candidate_template
+from offensive.purple import bola_blue_objective, exercise_marker
 
 
 _ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
@@ -187,6 +188,7 @@ def _observe(
     parsed_origin: SplitResult,
     path: str,
     credential: BearerCredential,
+    step: str,
 ) -> _Observation:
     """Perform one bounded request without redirects, retries, or response bodies."""
     connection: http.client.HTTPConnection | None = None
@@ -203,6 +205,8 @@ def _observe(
                 "Authorization": f"Bearer {credential.token}",
                 "Accept": "application/json",
                 "User-Agent": "pancito-red-team/bola-lab",
+                "X-Pancito-Exercise": exercise_marker(plan.experiment_id),
+                "X-Pancito-Step": step,
             },
         )
         response = connection.getresponse()
@@ -300,9 +304,15 @@ def run_bola_experiment(
         raise BolaPlanError("owner and peer principals must be distinct")
 
     parsed_origin = _parse_loopback_origin(plan.target_origin)
-    owner_control = _observe(plan, parsed_origin, plan.owner_path, owner)
-    peer_control = _observe(plan, parsed_origin, plan.peer_control_path, peer)
-    test = _observe(plan, parsed_origin, plan.owner_path, peer)
+    owner_control = _observe(
+        plan, parsed_origin, plan.owner_path, owner, "OWNER_CONTROL"
+    )
+    peer_control = _observe(
+        plan, parsed_origin, plan.peer_control_path, peer, "PEER_CONTROL"
+    )
+    test = _observe(
+        plan, parsed_origin, plan.owner_path, peer, "CROSS_PRINCIPAL_TEST"
+    )
     epistemic_level, reason_code = _adjudicate(
         owner_control, peer_control, test
     )
@@ -337,6 +347,7 @@ def run_bola_experiment(
         "model_used": False,
         "part_of_forensic_verdict": False,
         "receipt_integrity": "UNSEALED",
+        "blue_objective": bola_blue_objective(plan.experiment_id),
         "candidate_provenance": (
             plan.candidate_handoff.to_receipt()
             if plan.candidate_handoff is not None
