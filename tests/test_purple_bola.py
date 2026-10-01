@@ -10,10 +10,11 @@ from offensive.purple import (
     authn_blue_objective,
     evaluate_authn_detection,
     evaluate_bola_detection,
+    exercise_marker,
 )
 
 
-MARKER = "PANCITO-0123456789abcdef"
+MARKER = exercise_marker("BOLA-PURPLE-001")
 EXPECTED_STEPS = ("OWNER_CONTROL", "PEER_CONTROL", "CROSS_PRINCIPAL_TEST")
 
 
@@ -228,6 +229,58 @@ def test_receipt_cannot_expand_the_declared_three_step_exercise():
     )
 
     with pytest.raises(BlueObservationError, match="does not match"):
+        evaluate_bola_detection(receipt, observation)
+
+
+def test_receipt_marker_must_remain_bound_to_its_experiment_id():
+    receipt = _receipt()
+    substituted_marker = "PANCITO-fedcba9876543210"
+    receipt["blue_objective"]["exercise_marker"] = substituted_marker
+    observation = BlueObservation(
+        exercise_marker=substituted_marker,
+        collection_status="COMPLETE",
+        observed_steps=EXPECTED_STEPS,
+        alert_status="FIRED",
+        alert_reference="SIEM-SUBSTITUTED-MARKER",
+        alert_depends_on_exercise_marker=False,
+    )
+
+    with pytest.raises(BlueObservationError, match="does not match experiment_id"):
+        evaluate_bola_detection(receipt, observation)
+
+
+def test_present_capability_must_match_the_selected_evaluator():
+    receipt = _receipt()
+    receipt["capability"] = "http-authentication-enforcement-differential"
+    observation = BlueObservation(
+        exercise_marker=MARKER,
+        collection_status="COMPLETE",
+        observed_steps=EXPECTED_STEPS,
+        alert_status="NOT_FIRED",
+        alert_reference=None,
+        alert_depends_on_exercise_marker=False,
+    )
+
+    with pytest.raises(BlueObservationError, match="capability is inconsistent"):
+        evaluate_bola_detection(receipt, observation)
+
+
+def test_receipt_rejects_an_experiment_id_outside_the_active_contract():
+    receipt = _receipt()
+    receipt["experiment_id"] = "invalid experiment id"
+    receipt["blue_objective"]["exercise_marker"] = exercise_marker(
+        "invalid experiment id"
+    )
+    observation = BlueObservation(
+        exercise_marker=receipt["blue_objective"]["exercise_marker"],
+        collection_status="COMPLETE",
+        observed_steps=EXPECTED_STEPS,
+        alert_status="NOT_FIRED",
+        alert_reference=None,
+        alert_depends_on_exercise_marker=False,
+    )
+
+    with pytest.raises(BlueObservationError, match="experiment_id is invalid"):
         evaluate_bola_detection(receipt, observation)
 
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 
 _MARKER_RE = re.compile(r"^PANCITO-[0-9a-f]{16}$")
+_EXPERIMENT_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 _STEP_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _COLLECTION_STATUSES = frozenset({"COMPLETE", "PARTIAL", "UNKNOWN"})
 _ALERT_STATUSES = frozenset({"FIRED", "NOT_FIRED", "NOT_CHECKED"})
@@ -144,6 +145,7 @@ def _receipt_contract(
     receipt: dict[str, object],
     *,
     receipt_name: str,
+    capability: str,
     technique: str,
     declared_steps: tuple[str, ...],
 ) -> tuple[str, tuple[str, ...]]:
@@ -155,6 +157,14 @@ def _receipt_contract(
         raise BlueObservationError(
             f"{receipt_name} receipt verdict status is inconsistent"
         )
+    experiment_id = _text(receipt.get("experiment_id"), "experiment_id", 128)
+    if not _EXPERIMENT_ID_RE.fullmatch(experiment_id):
+        raise BlueObservationError("experiment_id is invalid")
+    observed_capability = receipt.get("capability")
+    if observed_capability is not None and observed_capability != capability:
+        raise BlueObservationError(
+            f"{receipt_name} receipt capability is inconsistent"
+        )
     objective = receipt.get("blue_objective")
     if not isinstance(objective, dict):
         raise BlueObservationError(f"{receipt_name} receipt has no Blue objective")
@@ -164,6 +174,10 @@ def _receipt_contract(
     marker = objective.get("exercise_marker")
     if not isinstance(marker, str) or not _MARKER_RE.fullmatch(marker):
         raise BlueObservationError(f"{receipt_name} receipt exercise marker is invalid")
+    if marker != exercise_marker(experiment_id):
+        raise BlueObservationError(
+            f"{receipt_name} receipt marker does not match experiment_id"
+        )
     raw_steps = objective.get("expected_steps")
     if not isinstance(raw_steps, list) or any(
         not isinstance(step, str) or not _STEP_RE.fullmatch(step)
@@ -207,6 +221,7 @@ def _evaluate_detection(
     observation: BlueObservation,
     *,
     receipt_name: str,
+    capability: str,
     technique: str,
     declared_steps: tuple[str, ...],
     detection_requirement: str,
@@ -216,6 +231,7 @@ def _evaluate_detection(
     marker, expected_steps = _receipt_contract(
         receipt,
         receipt_name=receipt_name,
+        capability=capability,
         technique=technique,
         declared_steps=declared_steps,
     )
@@ -307,6 +323,7 @@ def evaluate_bola_detection(
         bola_receipt,
         observation,
         receipt_name="BOLA",
+        capability="http-bola-differential",
         technique="BROKEN_OBJECT_LEVEL_AUTHORIZATION",
         declared_steps=_BOLA_STEPS,
         detection_requirement=_BOLA_DETECTION_REQUIREMENT,
@@ -321,6 +338,7 @@ def evaluate_authn_detection(
         authn_receipt,
         observation,
         receipt_name="AUTHN",
+        capability="http-authentication-enforcement-differential",
         technique="AUTHENTICATION_ENFORCEMENT_BYPASS",
         declared_steps=_AUTHN_STEPS,
         detection_requirement=_AUTHN_DETECTION_REQUIREMENT,

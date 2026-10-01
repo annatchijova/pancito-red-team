@@ -5,11 +5,12 @@ control testing. It reuses VIGÍA's deterministic forensic core and adds a
 strict offensive boundary: explicit scope, a closed capability catalogue,
 bounded execution, reproducible evidence, and sealed validation receipts.
 
-The current active executor is limited to a three-request BOLA differential
-experiment against a literal loopback origin. All other current offensive
-execution is replay-only. PANCITO cannot run arbitrary commands, choose a
-remote network target, generate a payload, follow redirects, or let a model
-supply a verdict, score, confidence value, or hash.
+The current active executors are limited to three-request BOLA and
+authentication-enforcement differential experiments against a literal
+loopback origin. All other current offensive execution is replay-only.
+PANCITO cannot run arbitrary commands, choose a remote network target,
+generate a payload, follow redirects, or let a model supply a verdict, score,
+confidence value, or hash.
 
 ## Current capability
 
@@ -28,7 +29,7 @@ timestomping. Each run:
 Protocol Kassandra protects evidence-to-LLM channels. It reports channel
 integrity only; it cannot produce or alter a forensic verdict.
 
-Two additional bounded capabilities are available:
+Additional bounded capabilities are available:
 
 - `offensive.bola` runs positive owner/peer controls and one cross-principal
   object-read probe against an exact loopback HTTP origin. It emits
@@ -36,14 +37,20 @@ Two additional bounded capabilities are available:
   response bodies, canaries, or credentials. Each request carries a public
   exercise/step marker so Blue can correlate telemetry without treating the
   marker itself as detection.
+- `offensive.authn` runs one valid-credential control plus anonymous and
+  invalid-bearer cells against a protected GET route. A 2xx response is not a
+  finding unless the protected canary is observed.
 - `offensive.openapi_surface` passively triages an operator-supplied OpenAPI
   JSON artifact. It produces provenance-preserving review candidates and
   explicit coverage gaps; it never contacts a target or promotes a candidate
   into a vulnerability finding.
-- `offensive.handoff` preserves the selected OpenAPI candidate and source hash
-  into the BOLA plan without importing the triage priority as a conclusion.
+- `offensive.handoff` preserves a selected BOLA or authentication candidate
+  and source hash into the active plan without importing triage priority as a
+  conclusion.
 - `offensive.purple` evaluates operator-supplied Blue telemetry and alert
-  observations independently from the Red prevention result.
+  observations independently from the Red prevention result. Its CLI binds
+  the evaluation to hashes of the exact Red and Blue input artifacts while
+  stating explicitly that the derivation remains unsealed.
 
 ## Quick start
 
@@ -75,14 +82,24 @@ example engagement is intentionally limited to the bundled replay lab.
 The strict command-line boundaries are available as modules:
 
 ```bash
-# Passive OpenAPI triage; add --select CANDIDATE-ID for a BOLA handoff.
+# Passive OpenAPI triage; select a BOLA or Authn handoff when required.
 python3 -m offensive.openapi_cli api.openapi.json triage-plan.json
+python3 -m offensive.openapi_cli --select-authn CANDIDATE-ID \
+  api.openapi.json triage-plan.json
 
 # Validate a BOLA manifest and its environment-backed secrets without requests.
 python3 -m offensive.bola_cli --dry-run bola-plan.json
 
 # Run the bounded three-request loopback experiment.
 python3 -m offensive.bola_cli bola-plan.json
+
+# Validate or run the authentication-enforcement differential.
+python3 -m offensive.authn_cli --dry-run authn-plan.json
+python3 -m offensive.authn_cli authn-plan.json
+
+# Evaluate Blue visibility/detection without changing the Red result.
+python3 -m offensive.purple_cli bola red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 ```
 
 BOLA manifests name environment variables that contain both credentials and
@@ -111,7 +128,7 @@ export VIGIA_ENFORCE_KASSANDRA_SALT=true
 
 | Path | Purpose |
 |---|---|
-| `offensive/` | Engagement validation, replay, OpenAPI triage/handoff, loopback BOLA proof/CLI, and Blue observation oracle |
+| `offensive/` | Engagement validation, replay, OpenAPI triage/handoff, loopback BOLA/Authn proofs, and deterministic Purple evaluation |
 | `examples/` | Bounded example engagement manifests |
 | `agent/tools.py` | Session boundary used by the replay executor |
 | `core/`, `pipeline/`, `tools/`, `verdict/` | Deterministic inherited decision and sealing closure |
