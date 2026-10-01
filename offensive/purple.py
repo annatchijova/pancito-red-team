@@ -34,6 +34,11 @@ _SCOPE_AUTHZ_STEPS = (
     "NARROW_SCOPE_CONTROL",
     "NARROW_PRIVILEGED_SCOPE_TEST",
 )
+_SEARCH_AUTHZ_STEPS = (
+    "ALPHA_SEARCH_CONTROL",
+    "BRAVO_SEARCH_CONTROL",
+    "CROSS_TENANT_SEARCH_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -121,6 +126,10 @@ _COLLECTION_AUTHZ_DETECTION_REQUIREMENT = (
 _SCOPE_AUTHZ_DETECTION_REQUIREMENT = (
     "Alert when a token is granted an action outside its effective scope. Required "
     "data: token identifier, effective scopes, route, required scope, decision, and status."
+)
+_SEARCH_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when search returns a result outside the authenticated tenant. Required "
+    "data: subject tenant, search scope, result tenant, query route, decision, and status."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -282,6 +291,29 @@ def scope_authz_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BROAD_SCOPE_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _SCOPE_AUTHZ_DETECTION_REQUIREMENT,
+    }
+
+
+def search_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one cross-tenant search-result differential."""
+    return {
+        "technique": "CROSS_TENANT_SEARCH_RESULT_ACCESS",
+        "attack_mapping": "OWASP_API1_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_SUBJECT_AND_QUERY_SCOPE",
+        "expected_steps": list(_SEARCH_AUTHZ_STEPS),
+        "expected_event_count": len(_SEARCH_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "search access log with subject tenant, query scope, and status",
+            "result authorization decision with the result tenant binding",
+        ],
+        "true_positive_step": "CROSS_TENANT_SEARCH_TEST",
+        "benign_twin_step": "BRAVO_SEARCH_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _SEARCH_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -879,6 +911,51 @@ def evaluate_scope_authz_detection(
         capability="http-token-scope-authorization-differential",
         technique="TOKEN_SCOPE_ENFORCEMENT", declared_steps=_SCOPE_AUTHZ_STEPS,
         detection_requirement=_SCOPE_AUTHZ_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_search_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the cross-tenant search-result replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("SEARCH_AUTHZ receipt must be an object")
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("search authorization request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("search authorization contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"alpha_control_passed", "bravo_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("search authorization controls are inconsistent")
+    controls_passed = controls == {
+        "alpha_control_passed": True,
+        "bravo_control_passed": True,
+    }
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not controls_passed or reason != "ALPHA_OBSERVED_BRAVO_SEARCH_CANARY":
+            raise BlueObservationError("search authorization confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not controls_passed or reason != "ALPHA_BRAVO_SEARCH_DENIED":
+            raise BlueObservationError("search authorization falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "ALPHA_CONTROL_FAILED", "BRAVO_CONTROL_FAILED", "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED", "TEST_REDIRECTED", "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("search authorization inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("search authorization epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="SEARCH_AUTHZ",
+        capability="http-search-authorization-differential",
+        technique="CROSS_TENANT_SEARCH_RESULT_ACCESS",
+        declared_steps=_SEARCH_AUTHZ_STEPS,
+        detection_requirement=_SEARCH_AUTHZ_DETECTION_REQUIREMENT,
     )
 
 

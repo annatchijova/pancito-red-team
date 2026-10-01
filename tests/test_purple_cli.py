@@ -16,6 +16,7 @@ from offensive.purple import (
     mass_assignment_blue_objective,
     nested_bola_blue_objective,
     scope_authz_blue_objective,
+    search_authz_blue_objective,
     stale_authority_blue_objective,
     state_change_blue_objective,
 )
@@ -206,7 +207,7 @@ def _receipt(technique: str = "bola") -> bytes:
             "method": "GET",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
-    else:
+    elif technique == "scope-authz":
         experiment_id = "PURPLE-CLI-SCOPE-001"
         capability = "http-token-scope-authorization-differential"
         objective = scope_authz_blue_objective(experiment_id)
@@ -215,6 +216,21 @@ def _receipt(technique: str = "bola") -> bytes:
             "controls": {
                 "broad_control_passed": True,
                 "narrow_control_passed": True,
+            },
+            "request_count": 3,
+            "maximum_request_count": 3,
+            "method": "GET",
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
+    else:
+        experiment_id = "PURPLE-CLI-SEARCH-001"
+        capability = "http-search-authorization-differential"
+        objective = search_authz_blue_objective(experiment_id)
+        extra = {
+            "reason_code": "ALPHA_OBSERVED_BRAVO_SEARCH_CANARY",
+            "controls": {
+                "alpha_control_passed": True,
+                "bravo_control_passed": True,
             },
             "request_count": 3,
             "maximum_request_count": 3,
@@ -270,8 +286,10 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
         objective = function_authz_blue_objective("PURPLE-CLI-BFLA-001")
     elif technique == "collection-authz":
         objective = collection_authz_blue_objective("PURPLE-CLI-COLLECTION-001")
-    else:
+    elif technique == "scope-authz":
         objective = scope_authz_blue_objective("PURPLE-CLI-SCOPE-001")
+    else:
+        objective = search_authz_blue_objective("PURPLE-CLI-SEARCH-001")
     value = {
         "schema_version": 1,
         "exercise_marker": objective["exercise_marker"],
@@ -330,6 +348,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         "function-authz",
         "collection-authz",
         "scope-authz",
+        "search-authz",
     ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(

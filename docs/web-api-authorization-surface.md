@@ -11,7 +11,7 @@ Resources: protected route, owned object, peer object, parent-scoped child,
 allowed property, protected property, tenant collection, member function,
 administrative function, scope-protected resource.
 
-Actions: read, list, and update. Search, export, share, transfer, invite, revoke,
+Actions: read, list, search, and update. Export, share, transfer, invite, revoke,
 restore and stale-session use are not yet covered.
 
 ## Matrix
@@ -28,6 +28,7 @@ restore and stale-session use are not yet covered.
 | Broad-scope token | Scope-protected resource | Read | Allowed | Token-scope broad control with privileged canary |
 | Narrow-scope token | Narrow-scope resource | Read | Allowed | Token-scope narrow control with allowed canary |
 | Narrow-scope token | Scope-protected resource | Read | Denied | Token-scope negative cell; only the credential changes from the broad control |
+| Authenticated member, tenant Alpha | Tenant Bravo search result | Search | Denied | Search-isolation negative cell; the Bravo search request changes only its credential |
 | Anonymous / invalid credential | Publicly reachable mutable resource | Update | Denied | State-change differential with authenticated read-back and restoration |
 | Low-privilege actor | Own allowed property | Update | Allowed | Mass-assignment positive control |
 | Low-privilege actor | Own protected property | Update | Denied | Mass-assignment negative cell with observer read-back |
