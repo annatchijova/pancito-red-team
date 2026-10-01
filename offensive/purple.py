@@ -14,6 +14,11 @@ _STEP_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _COLLECTION_STATUSES = frozenset({"COMPLETE", "PARTIAL", "UNKNOWN"})
 _ALERT_STATUSES = frozenset({"FIRED", "NOT_FIRED", "NOT_CHECKED"})
 _BOLA_STEPS = ("OWNER_CONTROL", "PEER_CONTROL", "CROSS_PRINCIPAL_TEST")
+_NESTED_BOLA_STEPS = (
+    "OWNER_NESTED_CONTROL",
+    "PEER_NESTED_CONTROL",
+    "CROSS_CHILD_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -65,6 +70,11 @@ _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
     "object identifier, owner or tenant, authorization decision, route, and status."
+)
+_NESTED_BOLA_DETECTION_REQUIREMENT = (
+    "Alert on an allowed child read whose resolved parent differs from the parent "
+    "authorized in the route. Required data: subject, route parent, child identifier, "
+    "resolved child parent, authorization decision, and status."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -132,6 +142,28 @@ def bola_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "PEER_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _BOLA_DETECTION_REQUIREMENT,
+    }
+
+
+def nested_bola_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue telemetry for one nested-resource authorization differential."""
+    return {
+        "technique": "NESTED_RESOURCE_AUTHORIZATION",
+        "attack_mapping": "OWASP_API1_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(_NESTED_BOLA_STEPS),
+        "expected_event_count": len(_NESTED_BOLA_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with subject, parent id, child id, route, and status",
+            "authorization log binding the child owner or parent to the route parent",
+        ],
+        "true_positive_step": "CROSS_CHILD_TEST",
+        "benign_twin_step": "OWNER_NESTED_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _NESTED_BOLA_DETECTION_REQUIREMENT,
     }
 
 
@@ -493,6 +525,56 @@ def evaluate_bola_detection(
         technique="BROKEN_OBJECT_LEVEL_AUTHORIZATION",
         declared_steps=_BOLA_STEPS,
         detection_requirement=_BOLA_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_nested_bola_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the exact child-only substitution exercise."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("NESTED_BOLA receipt must be an object")
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("nested-BOLA request budget is inconsistent")
+    if receipt.get("method") != "GET":
+        raise BlueObservationError("nested-BOLA method is inconsistent")
+    if receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("nested-BOLA receipt overclaims impact")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"owner_control_passed", "peer_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("nested-BOLA controls are inconsistent")
+    level = receipt.get("epistemic_level")
+    reason = receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if reason != "FOREIGN_CHILD_CANARY_OBSERVED" or not all(controls.values()):
+            raise BlueObservationError("nested-BOLA confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if reason != "CROSS_PARENT_CHILD_ACCESS_DENIED" or not all(controls.values()):
+            raise BlueObservationError("nested-BOLA falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "OWNER_CONTROL_FAILED",
+            "PEER_CONTROL_FAILED",
+            "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED",
+            "TEST_REDIRECTED",
+            "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("nested-BOLA inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("nested-BOLA epistemic level is invalid")
+    return _evaluate_detection(
+        receipt,
+        observation,
+        receipt_name="NESTED_BOLA",
+        capability="http-nested-bola-differential",
+        technique="NESTED_RESOURCE_AUTHORIZATION",
+        declared_steps=_NESTED_BOLA_STEPS,
+        detection_requirement=_NESTED_BOLA_DETECTION_REQUIREMENT,
     )
 
 

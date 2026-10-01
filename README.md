@@ -57,6 +57,7 @@ agentic security product uses the first design.
 |---|---|---|
 | Hostile telemetry replay | Does the sealed DFIR path detect the expected ATT&CK techniques? | Committed fixtures, fixed scenario catalogue, verified custody chain |
 | BOLA differential | Can one authenticated principal read another principal's object? | Owner and peer controls before one cross-principal cell |
+| Nested BOLA | Can an authorized parent path retrieve a child belonging to another parent? | Only the child ID changes; a foreign canary, not `200`, proves disclosure |
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | Mass assignment / BOPLA | Can a low-privilege actor modify a protected property? | Allowed-field control, observer read-back, and verified two-field restoration |
@@ -111,6 +112,7 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
 - [Offensive replay tests](tests/test_offensive_replay.py) exercise the fixed
   catalogue, budget, custody verification, and deterministic Blue oracle.
 - [BOLA](tests/test_bola_differential.py),
+  [nested BOLA](tests/test_nested_bola_differential.py),
   [authentication](tests/test_authn_differential.py),
   [state-change](tests/test_state_change_differential.py),
   [mass-assignment](tests/test_mass_assignment_differential.py), and

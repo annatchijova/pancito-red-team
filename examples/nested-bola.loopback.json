@@ -1,0 +1,21 @@
+{
+  "authorization_reference": "replace-with-written-lab-scope-reference",
+  "authorized_by": "replace-with-authorizer",
+  "child_segment_index": 3,
+  "cross_child_path": "/orgs/a/docs/b-doc",
+  "experiment_id": "NESTED-BOLA-LOOPBACK-001",
+  "max_response_bytes": 16384,
+  "operator_acknowledged": true,
+  "owner_canary_env": "PANCITO_NESTED_OWNER_CANARY",
+  "owner_control_path": "/orgs/a/docs/a-doc",
+  "owner_principal_id": "nested-owner",
+  "owner_token_env": "PANCITO_NESTED_OWNER_TOKEN",
+  "parent_segment_index": 1,
+  "peer_canary_env": "PANCITO_NESTED_PEER_CANARY",
+  "peer_control_path": "/orgs/b/docs/b-doc",
+  "peer_principal_id": "nested-peer",
+  "peer_token_env": "PANCITO_NESTED_PEER_TOKEN",
+  "schema_version": 1,
+  "target_origin": "http://127.0.0.1:8080",
+  "timeout_ms": 2000
+}

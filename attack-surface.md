@@ -2,15 +2,14 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `128bde8` and the current working tree.
+of base commit `c570ecc` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Property-level authorization / mass assignment | Authenticated JSON `PATCH` | AUTHENTICATED | Roles and server-managed properties | PANCITO covered object authorization and public mutation, but had no actor × property negative cell | `offensive/bola.py`, `offensive/state_change.py` at `128bde8` | A working allowed-field control followed by protected-field read-back remaining at baseline | CANDIDATE |
-| 2 | Stale authority after role revocation | Authenticated request with an already-issued token | AUTHENTICATED | Revoked privileges and tenant data | No current capability models a transition from valid authority to revoked authority | Current `offensive/` capability catalogue | Both session and token lose access within the declared invalidation contract | CANDIDATE |
-| 3 | Nested-resource authorization mismatch | `/parents/{p}/children/{c}` | AUTHENTICATED | Cross-tenant child resources | Current BOLA differential tests one object identity, not parent/child binding | `offensive/bola.py` | Swapping only the child identifier is denied and returns no foreign canary | CANDIDATE |
+| 1 | Stale authority after role revocation | Authenticated request with an already-issued token | AUTHENTICATED | Revoked privileges and tenant data | No current capability models a transition from valid authority to revoked authority | Current `offensive/` capability catalogue | Both session and token lose access within the declared invalidation contract | CANDIDATE |
+| 2 | Nested-resource authorization mismatch | `/parents/{p}/children/{c}` | AUTHENTICATED | Cross-tenant child resources | Parent and child authorization may be resolved independently; a bounded child-only differential now exists | `offensive/nested_bola.py` | Swapping only the child identifier is denied and returns no foreign canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -23,6 +22,12 @@ of base commit `128bde8` and the current working tree.
 ## Refuted during triage
 
 None. This artifact ranks capability gaps; it does not assert a target finding.
+
+## Capability gaps closed
+
+- Property-level authorization was removed from the capability-gap queue after
+  `offensive/mass_assignment.py` established a bounded experiment. This closes
+  an implementation gap; it does not refute or confirm any target candidate.
 
 ## Not enumerated (coverage gaps)
 

@@ -12,6 +12,7 @@ from offensive.purple import (
     bola_blue_objective,
     file_ingress_blue_objective,
     mass_assignment_blue_objective,
+    nested_bola_blue_objective,
     state_change_blue_objective,
 )
 from offensive.purple_cli import (
@@ -110,7 +111,7 @@ def _receipt(technique: str = "bola") -> bytes:
             },
             "observations": [{"step": step} for step in steps],
         }
-    else:
+    elif technique == "mass-assignment":
         experiment_id = "PURPLE-CLI-MASS-001"
         capability = "http-mass-assignment-differential"
         steps = (
@@ -134,6 +135,21 @@ def _receipt(technique: str = "bola") -> bytes:
             "negative_outcome": "PROTECTED_FIELD_MUTATION_CONFIRMED",
             "cleanup_status": "RESTORED_TO_BASELINE",
             "final_state_verified": True,
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
+    else:
+        experiment_id = "PURPLE-CLI-NESTED-001"
+        capability = "http-nested-bola-differential"
+        objective = nested_bola_blue_objective(experiment_id)
+        extra = {
+            "request_count": 3,
+            "maximum_request_count": 3,
+            "method": "GET",
+            "controls": {
+                "owner_control_passed": True,
+                "peer_control_passed": True,
+            },
+            "reason_code": "FOREIGN_CHILD_CANARY_OBSERVED",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
     return json.dumps(
@@ -167,12 +183,14 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
             "PURPLE-CLI-FILE-001",
             tuple(item["step"] for item in receipt["observations"]),
         )
-    else:
+    elif technique == "mass-assignment":
         receipt = json.loads(_receipt(technique))
         objective = mass_assignment_blue_objective(
             "PURPLE-CLI-MASS-001",
             tuple(item["step"] for item in receipt["observations"]),
         )
+    else:
+        objective = nested_bola_blue_objective("PURPLE-CLI-NESTED-001")
     value = {
         "schema_version": 1,
         "exercise_marker": objective["exercise_marker"],
@@ -220,7 +238,14 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
 
 @pytest.mark.parametrize(
     "technique",
-    ["bola", "authn", "state-change", "file-ingress", "mass-assignment"],
+    [
+        "bola",
+        "authn",
+        "state-change",
+        "file-ingress",
+        "mass-assignment",
+        "nested-bola",
+    ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
     technique, tmp_path, capsys
