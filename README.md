@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="visual/logo.jpeg" alt="PANCITO-RED-TEAM project artwork" width="600">
-</p>
-
 # PANCITO-RED-TEAM
 
 > **Research-use notice:** PANCITO-RED-TEAM is a research and adversarial
