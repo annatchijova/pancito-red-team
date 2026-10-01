@@ -2,13 +2,13 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `41988f8` and the current working tree.
+of base commit `8aeea21` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Cross-tenant collection listing | Tenant-scoped collection route | AUTHENTICATED | Multi-object tenant data | Single-object authorization does not establish list-query tenant scoping; a bounded credential-only collection differential now exists | `offensive/collection_authz.py` | Both tenant controls succeed and the foreign principal is denied with no foreign canary | CANDIDATE |
+| 1 | Token scope not enforced at action | Scope-protected read route | AUTHENTICATED NARROW TOKEN | Data or operations reserved for a broader delegated authority | Token validity does not establish action-level scope enforcement; a bounded credential-only differential now exists | `offensive/scope_authz.py` | Both scope controls succeed and the narrow token is denied with no privileged canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -33,6 +33,8 @@ None. This artifact ranks capability gaps; it does not assert a target finding.
 - Function-level authorization was removed after its bounded credential-only
   experiment established a test contract. This closes an implementation gap;
   it does not assert a target finding.
+- Cross-tenant collection listing was removed after its two-tenant differential
+  established a test contract. This closes an implementation gap, not a target finding.
 
 ## Not enumerated (coverage gaps)
 

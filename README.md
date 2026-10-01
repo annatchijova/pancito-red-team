@@ -60,6 +60,7 @@ agentic security product uses the first design.
 | Nested BOLA | Can an authorized parent path retrieve a child belonging to another parent? | Only the child ID changes; a foreign canary, not `200`, proves disclosure |
 | Function authorization / BFLA | Can a member invoke an administrative read function? | Admin and member controls precede one credential-only replay; the admin canary, not `200`, proves access |
 | Collection isolation | Can one tenant member list another tenant's collection? | Two legitimate collection controls precede a credential-only replay; a foreign canary, not an empty `200`, proves disclosure |
+| Token scope enforcement | Can a narrow token read a resource reserved for a broader scope? | Broad and narrow controls precede a credential-only replay; the privileged canary, not `200`, proves excess authority |
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | Mass assignment / BOPLA | Can a low-privilege actor modify a protected property? | Allowed-field control, observer read-back, and verified two-field restoration |
@@ -118,6 +119,7 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
   [nested BOLA](tests/test_nested_bola_differential.py),
   [function authorization](tests/test_function_authz_differential.py),
   [collection isolation](tests/test_collection_authz_differential.py),
+  [token scope enforcement](tests/test_scope_authz_differential.py),
   [authentication](tests/test_authn_differential.py),
   [state-change](tests/test_state_change_differential.py),
   [mass-assignment](tests/test_mass_assignment_differential.py), and

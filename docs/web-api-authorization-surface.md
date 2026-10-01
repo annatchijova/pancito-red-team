@@ -4,14 +4,15 @@ This matrix records the authorization cells implemented by PANCITO experiments.
 It describes test capability, not the security state of an untested target.
 
 Actors: anonymous, invalid credential, authenticated owner, authenticated peer,
-authenticated member, administrator, low-privilege actor, privileged observer.
+authenticated member, administrator, broad-scope token, narrow-scope token,
+low-privilege actor, privileged observer.
 
 Resources: protected route, owned object, peer object, parent-scoped child,
 allowed property, protected property, tenant collection, member function,
-administrative function.
+administrative function, scope-protected resource.
 
 Actions: read, list, and update. Search, export, share, transfer, invite, revoke,
-restore, stale-session use, and scoped-token enforcement are not yet covered.
+restore and stale-session use are not yet covered.
 
 ## Matrix
 
@@ -24,6 +25,9 @@ restore, stale-session use, and scoped-token enforcement are not yet covered.
 | Authenticated member | Member function | Read | Allowed | Function-authorization member control with a member-only canary |
 | Authenticated member | Administrative function | Read | Denied | Function-authorization negative cell; only the credential changes from the admin control |
 | Authenticated member, tenant Alpha | Tenant Bravo collection | List | Denied | Collection-isolation negative cell; the Bravo control request changes only its credential |
+| Broad-scope token | Scope-protected resource | Read | Allowed | Token-scope broad control with privileged canary |
+| Narrow-scope token | Narrow-scope resource | Read | Allowed | Token-scope narrow control with allowed canary |
+| Narrow-scope token | Scope-protected resource | Read | Denied | Token-scope negative cell; only the credential changes from the broad control |
 | Anonymous / invalid credential | Publicly reachable mutable resource | Update | Denied | State-change differential with authenticated read-back and restoration |
 | Low-privilege actor | Own allowed property | Update | Allowed | Mass-assignment positive control |
 | Low-privilege actor | Own protected property | Update | Denied | Mass-assignment negative cell with observer read-back |

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "experiment_id": "SCOPE-LOOPBACK-001",
+  "authorization_reference": "replace-with-written-loopback-authorization",
+  "authorized_by": "replace-with-authorizer-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "privileged_resource_path": "/scoped/privileged",
+  "narrow_control_path": "/scoped/allowed",
+  "broad_principal_id": "broad-scope-token",
+  "narrow_principal_id": "narrow-scope-token",
+  "broad_token_env": "PANCITO_SCOPE_BROAD_TOKEN",
+  "narrow_token_env": "PANCITO_SCOPE_NARROW_TOKEN",
+  "privileged_canary_env": "PANCITO_SCOPE_PRIVILEGED_CANARY",
+  "narrow_canary_env": "PANCITO_SCOPE_NARROW_CANARY",
+  "timeout_ms": 2000,
+  "max_response_bytes": 16384
+}

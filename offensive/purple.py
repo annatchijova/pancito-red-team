@@ -29,6 +29,11 @@ _COLLECTION_AUTHZ_STEPS = (
     "BRAVO_COLLECTION_CONTROL",
     "CROSS_TENANT_LIST_TEST",
 )
+_SCOPE_AUTHZ_STEPS = (
+    "BROAD_SCOPE_CONTROL",
+    "NARROW_SCOPE_CONTROL",
+    "NARROW_PRIVILEGED_SCOPE_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -112,6 +117,10 @@ _COLLECTION_AUTHZ_DETECTION_REQUIREMENT = (
     "Alert when a principal is granted a collection belonging to another tenant. "
     "Required data: subject tenant, requested tenant, route, authorization decision, "
     "and status."
+)
+_SCOPE_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when a token is granted an action outside its effective scope. Required "
+    "data: token identifier, effective scopes, route, required scope, decision, and status."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -250,6 +259,29 @@ def collection_authz_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BRAVO_COLLECTION_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _COLLECTION_AUTHZ_DETECTION_REQUIREMENT,
+    }
+
+
+def scope_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one token-scope enforcement differential."""
+    return {
+        "technique": "TOKEN_SCOPE_ENFORCEMENT",
+        "attack_mapping": "OWASP_API2_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_TOKEN_AND_PATH",
+        "expected_steps": list(_SCOPE_AUTHZ_STEPS),
+        "expected_event_count": len(_SCOPE_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with token id, effective scopes, route, and status",
+            "authorization decision with required scope and grant or denial",
+        ],
+        "true_positive_step": "NARROW_PRIVILEGED_SCOPE_TEST",
+        "benign_twin_step": "BROAD_SCOPE_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _SCOPE_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -803,6 +835,50 @@ def evaluate_collection_authz_detection(
         technique="CROSS_TENANT_COLLECTION_ACCESS",
         declared_steps=_COLLECTION_AUTHZ_STEPS,
         detection_requirement=_COLLECTION_AUTHZ_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_scope_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the narrow-token privileged-resource replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("SCOPE_AUTHZ receipt must be an object")
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("scope authorization request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("scope authorization contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"broad_control_passed", "narrow_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("scope authorization controls are inconsistent")
+    controls_passed = controls == {
+        "broad_control_passed": True,
+        "narrow_control_passed": True,
+    }
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not controls_passed or reason != "NARROW_OBSERVED_PRIVILEGED_CANARY":
+            raise BlueObservationError("scope authorization confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not controls_passed or reason != "NARROW_PRIVILEGED_SCOPE_DENIED":
+            raise BlueObservationError("scope authorization falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BROAD_CONTROL_FAILED", "NARROW_CONTROL_FAILED", "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED", "TEST_REDIRECTED", "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("scope authorization inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("scope authorization epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="SCOPE_AUTHZ",
+        capability="http-token-scope-authorization-differential",
+        technique="TOKEN_SCOPE_ENFORCEMENT", declared_steps=_SCOPE_AUTHZ_STEPS,
+        detection_requirement=_SCOPE_AUTHZ_DETECTION_REQUIREMENT,
     )
 
 
