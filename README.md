@@ -60,6 +60,7 @@ agentic security product uses the first design.
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | File ingress | Does storage accept bytes that contradict type or size policy? | Three generated inert samples, exact digest/size read-back, verified deletion |
+| Forensic-evasion differential | Do SIFT sensors distinguish known timestomp and log-wipe traces from a clean control? | Three module-owned synthetic cells; exact ground truth stays separate from unsealed sensor observations |
 | OpenAPI triage | Which declared routes deserve a bounded follow-up experiment? | Passive local artifact analysis; every result remains a candidate, never a finding |
 | Purple evaluation | Did Blue observe and alert on the exact executed behavior? | Red prevention and Blue detection remain separate conclusions |
 
@@ -112,6 +113,9 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
   control/negative-cell contracts and failure states.
 - [Purple evaluation tests](tests/test_purple_cli.py) bind Blue assertions to
   the exact Red and Blue artifacts evaluated.
+- [Forensic-evasion differential](tests/test_forensic_evasion_differential.py)
+  tests the real SIFT MFT parser/analyzer and event-chain detector against
+  fixed synthetic ground truth without promoting sensor output to a verdict.
 - The [architecture validation receipt](docs/pancito-architecture.visual-check.json)
   records desktop containment and capture evidence for the delivered diagram.
 

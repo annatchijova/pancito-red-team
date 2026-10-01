@@ -1,0 +1,7 @@
+{
+  "authorization_reference": "replace-with-written-lab-scope",
+  "authorized_by": "replace-with-authorizer",
+  "experiment_id": "SIFT-EVASION-001",
+  "operator_acknowledged": true,
+  "schema_version": 1
+}

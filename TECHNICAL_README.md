@@ -13,8 +13,9 @@ custody, agent, and service modules. The supported offensive product surface is:
 1. deterministic replay of committed hostile telemetry;
 2. passive local OpenAPI triage and provenance-preserving handoff;
 3. four curated HTTP differentials restricted to literal loopback origins;
-4. deterministic Purple evaluation of operator-supplied Blue evidence; and
-5. optional model narration after consequential values already exist.
+4. one offline forensic-evasion differential over module-owned synthetic data;
+5. deterministic Purple evaluation of operator-supplied Blue evidence; and
+6. optional model narration after consequential values already exist.
 
 The inherited web service is retained and tested, but its investigation
 transport is fixture-backed replay. There is no approved PANCITO production
@@ -96,10 +97,37 @@ backend degradation is exposed through `/health`.
 | [offensive/authn.py](offensive/authn.py) | 3 GETs | Valid credential returns the protected canary | Anonymous and invalid bearer | A status alone cannot confirm protected-data exposure |
 | [offensive/state_change.py](offensive/state_change.py) | At most 13 bounded requests | Baseline plus valid PATCH/read-back | Anonymous and invalid-bearer PATCH | Restore and authenticated restore verification after each observed mutation |
 | [offensive/file_ingress.py](offensive/file_ingress.py) | At most 12 bounded requests | Valid inert text stores exactly | Declared PNG mismatch and `limit + 1` bytes | DELETE plus authenticated 404/410 verification for every returned ID |
+| [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
 
 All active HTTP capabilities reject remote hosts, HTTPS, user information,
 redirect following, arbitrary commands, and arbitrary sample files. Secrets are
 resolved from named environment variables and are omitted from receipts.
+
+### SIFT forensic-evasion differential
+
+The forensic-evasion capability treats inherited SIFT code as a Blue sensor
+under test, never as a source of truth. PANCITO constructs all bytes internally:
+a minimal inert NTFS `FILE` record and canonical event facts. No manifest field
+can name a target, file, payload, command, or network destination.
+
+```text
+fixed ground truth ───────────────┐
+                                 ├─ exact comparison ─> unsealed receipt
+synthetic MFT/events -> SIFT ─────┘
+```
+
+The fixed matrix contains `CONTROL`, `TIMESTOMP`, and `LOG_WIPE`. The MFT cell
+passes through both `sift.mft_parser.parse_mft_bytes` and
+`sift.disk_forensics.MFTTimelineAnalyzer`; the event cell passes through
+`sift.event_log_correlator.AttackChainDetector`. Only the two declared semantic
+signals are compared. A sensor exception, dirty control, or unexpected signal
+is `INCONCLUSIVE`; a clean control with a missed mutation is `FALSIFIED`.
+Detection of both mutations is `CONFIRMED_BY_INDUCTION`, scoped only to these
+fixtures and versions.
+
+SIFT's internal floating-point timestamp conversion remains outside the sealed
+core. The capability never calls its float-producing `to_signal()` methods,
+does not seal its receipt, and states `part_of_forensic_verdict: false`.
 
 ## Passive triage and handoff
 
@@ -182,6 +210,9 @@ python3 -m offensive.state_change_cli state-change-plan.json
 
 python3 -m offensive.file_ingress_cli --dry-run file-ingress-plan.json
 python3 -m offensive.file_ingress_cli file-ingress-plan.json
+
+python3 -m offensive.forensic_evasion_cli --dry-run examples/forensic-evasion.synthetic.json
+python3 -m offensive.forensic_evasion_cli examples/forensic-evasion.synthetic.json
 ```
 
 Evaluate Blue evidence without changing the Red result:
@@ -273,6 +304,8 @@ verdict/         deterministic export surfaces
 - OpenAPI candidates describe an artifact and may not match deployed reality.
 - Purple observations are operator assertions and Purple derivations are
   unsealed.
+- The forensic-evasion result validates only two SIFT behaviors against three
+  synthetic cells; it is not a claim about arbitrary NTFS or EVTX evidence.
 - Kassandra without a private secret salt is precomputable.
 - The inherited service and Python package still expose different product
   surfaces; deployment needs an explicit boundary decision.

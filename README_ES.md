@@ -61,6 +61,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Diferencial de autenticación | ¿Datos protegidos sobreviven credenciales ausentes o inválidas? | Un 2xx no alcanza sin observar el canario protegido |
 | Cambio de estado público | ¿Una identidad anónima o inválida puede mutar un campo? | Read-back autenticado y restauración verificada |
 | Ingreso de archivos | ¿Storage acepta bytes incompatibles con tipo o tamaño? | Tres muestras inertes, digest/tamaño exactos y borrado verificado |
+| Diferencial de evasión forense | ¿Los sensores SIFT distinguen rastros conocidos de timestomp y borrado de logs frente a un control limpio? | Tres celdas sintéticas propias del módulo; ground truth exacto separado de observaciones no selladas |
 | Triage OpenAPI | ¿Qué rutas declaradas merecen un experimento acotado? | Análisis pasivo local; cada resultado sigue siendo candidato, no hallazgo |
 | Evaluación Purple | ¿Blue observó y alertó sobre la conducta ejecutada? | Prevención Red y detección Blue permanecen separadas |
 
@@ -114,6 +115,9 @@ Para preparar el entorno y usar el servicio heredado opcional, ver
   controles, celdas negativas y degradación honesta.
 - [Evaluación Purple](tests/test_purple_cli.py): liga las afirmaciones Blue a
   los artefactos Red y Blue exactos que fueron evaluados.
+- El [diferencial de evasión forense](tests/test_forensic_evasion_differential.py)
+  prueba el parser/analyzer MFT y el detector de cadenas de eventos reales de
+  SIFT contra ground truth sintético fijo, sin promover el sensor a veredicto.
 - El [recibo visual de arquitectura](docs/pancito-architecture.visual-check.json)
   registra contención de escritorio y capturas del diagrama entregado.
 
