@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -91,6 +94,40 @@ def test_manifest_has_a_hard_size_limit(tmp_path):
     path.write_bytes(b" " * 65_537)
     with pytest.raises(EngagementFormatError, match="65536 bytes"):
         load_engagement(path)
+
+
+def test_manifest_rejects_final_symlink(tmp_path):
+    target = _write_manifest(tmp_path, _manifest())
+    link = tmp_path / "engagement-link.json"
+    link.symlink_to(target)
+
+    with pytest.raises(EngagementFormatError, match="must not be a symlink"):
+        load_engagement(link)
+
+
+def test_manifest_rejects_fifo_without_blocking(tmp_path):
+    fifo = tmp_path / "engagement.fifo"
+    os.mkfifo(fifo)
+    script = "\n".join(
+        [
+            "import sys",
+            "from offensive.engagement import EngagementFormatError, load_engagement",
+            "try:",
+            "    load_engagement(sys.argv[1])",
+            "except EngagementFormatError:",
+            "    raise SystemExit(0)",
+            "raise SystemExit(1)",
+        ]
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(fifo)],
+        capture_output=True,
+        text=True,
+        timeout=3,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_manifest_provenance_is_returned_by_the_campaign(tmp_path):

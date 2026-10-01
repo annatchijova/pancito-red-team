@@ -35,9 +35,12 @@ def read_bounded_regular_file(
     artifact_path = Path(path)
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
     no_follow = getattr(os, "O_NOFOLLOW", None)
-    if no_follow is None:
-        raise LocalArtifactError("secure no-follow file opening is unavailable")
-    flags |= no_follow
+    non_blocking = getattr(os, "O_NONBLOCK", None)
+    if no_follow is None or non_blocking is None:
+        raise LocalArtifactError(
+            "secure non-blocking no-follow file opening is unavailable"
+        )
+    flags |= no_follow | non_blocking
     descriptor: int | None = None
     try:
         descriptor = os.open(artifact_path, flags)

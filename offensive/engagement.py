@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from offensive.local_artifact import LocalArtifactError, read_bounded_regular_file
 from offensive.replay import AuthorizationError, AuthorizationGrant, scenario_catalog
 
 
@@ -98,25 +99,17 @@ class EngagementPlan:
 
 def load_engagement(path: str | Path) -> EngagementPlan:
     """Load a bounded JSON manifest and fail closed on ambiguous input."""
-    source_path = Path(path).resolve()
+    source_path = Path(path).absolute()
     try:
-        size = source_path.stat().st_size
-    except OSError as exc:
-        raise EngagementFormatError(f"cannot read engagement manifest: {exc}") from exc
-    if size > _MAX_MANIFEST_BYTES:
-        raise EngagementFormatError(
-            f"engagement manifest exceeds {_MAX_MANIFEST_BYTES} bytes"
+        raw = read_bounded_regular_file(
+            source_path,
+            maximum_bytes=_MAX_MANIFEST_BYTES,
+            label="engagement manifest",
         )
-    try:
-        raw = source_path.read_bytes()
-    except OSError as exc:
+    except LocalArtifactError as exc:
         raise EngagementFormatError(f"cannot read engagement manifest: {exc}") from exc
     if not raw:
         raise EngagementFormatError("engagement manifest must not be empty")
-    if len(raw) > _MAX_MANIFEST_BYTES:
-        raise EngagementFormatError(
-            f"engagement manifest exceeds {_MAX_MANIFEST_BYTES} bytes"
-        )
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
