@@ -2,13 +2,13 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `696d7e5` and the current working tree.
+of base commit `37f4fc3` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Cross-tenant search result disclosure | Tenant-scoped search route | AUTHENTICATED | Searchable tenant records and metadata | Collection listing and object reads do not establish that search results apply the caller's tenant predicate; a bounded same-query differential now exists | `offensive/search_authz.py` | Both tenant queries return their distinct canaries and Alpha receives no Bravo result | CANDIDATE |
+| 1 | Cross-tenant export disclosure | Tenant export route | AUTHENTICATED | Generated records, potentially containing a tenant-wide snapshot | Collection and search authorization do not establish that generated export bytes remain tenant-scoped; a bounded identical-path credential differential now exists | `offensive/export_authz.py` | Both tenant controls return only their own canaries and Alpha does not receive Bravo's canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -37,6 +37,9 @@ None. This artifact ranks capability gaps; it does not assert a target finding.
   established a test contract. This closes an implementation gap, not a target finding.
 - Action-level token scope was removed after its bounded token differential
   established a test contract. This closes an implementation gap, not a target finding.
+- Cross-tenant search was removed after its same-query differential established
+  a test contract; cross-tenant export is now the highest-ranked unclosed
+  authorization capability gap. Neither statement asserts a target finding.
 
 ## Not enumerated (coverage gaps)
 

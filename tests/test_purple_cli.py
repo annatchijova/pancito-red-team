@@ -17,6 +17,7 @@ from offensive.purple import (
     nested_bola_blue_objective,
     scope_authz_blue_objective,
     search_authz_blue_objective,
+    export_authz_blue_objective,
     stale_authority_blue_objective,
     state_change_blue_objective,
 )
@@ -207,6 +208,18 @@ def _receipt(technique: str = "bola") -> bytes:
             "method": "GET",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
+    elif technique == "export-authz":
+        experiment_id = "PURPLE-CLI-EXPORT-001"
+        capability = "http-export-authorization-differential"
+        objective = export_authz_blue_objective(experiment_id)
+        extra = {
+            "reason_code": "ALPHA_OBSERVED_BRAVO_EXPORT_CANARY",
+            "controls": {"alpha_control_passed": True, "bravo_control_passed": True},
+            "request_count": 3,
+            "maximum_request_count": 3,
+            "method": "GET",
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
     elif technique == "scope-authz":
         experiment_id = "PURPLE-CLI-SCOPE-001"
         capability = "http-token-scope-authorization-differential"
@@ -288,6 +301,8 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
         objective = collection_authz_blue_objective("PURPLE-CLI-COLLECTION-001")
     elif technique == "scope-authz":
         objective = scope_authz_blue_objective("PURPLE-CLI-SCOPE-001")
+    elif technique == "export-authz":
+        objective = export_authz_blue_objective("PURPLE-CLI-EXPORT-001")
     else:
         objective = search_authz_blue_objective("PURPLE-CLI-SEARCH-001")
     value = {
@@ -349,6 +364,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         "collection-authz",
         "scope-authz",
         "search-authz",
+        "export-authz",
     ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(

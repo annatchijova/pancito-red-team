@@ -39,6 +39,11 @@ _SEARCH_AUTHZ_STEPS = (
     "BRAVO_SEARCH_CONTROL",
     "CROSS_TENANT_SEARCH_TEST",
 )
+_EXPORT_AUTHZ_STEPS = (
+    "ALPHA_EXPORT_CONTROL",
+    "BRAVO_EXPORT_CONTROL",
+    "CROSS_TENANT_EXPORT_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -130,6 +135,11 @@ _SCOPE_AUTHZ_DETECTION_REQUIREMENT = (
 _SEARCH_AUTHZ_DETECTION_REQUIREMENT = (
     "Alert when search returns a result outside the authenticated tenant. Required "
     "data: subject tenant, search scope, result tenant, query route, decision, and status."
+)
+_EXPORT_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when an export contains records outside the authenticated tenant. "
+    "Required data: subject tenant, export job or route, resolved data scope, "
+    "authorization decision, and exported record ownership."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -314,6 +324,29 @@ def search_authz_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BRAVO_SEARCH_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _SEARCH_AUTHZ_DETECTION_REQUIREMENT,
+    }
+
+
+def export_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one cross-tenant export differential."""
+    return {
+        "technique": "CROSS_TENANT_EXPORT_ACCESS",
+        "attack_mapping": "OWASP_API1_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_SUBJECT_AND_EXPORT_PATH",
+        "expected_steps": list(_EXPORT_AUTHZ_STEPS),
+        "expected_event_count": len(_EXPORT_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "export access log with subject tenant, export route, and status",
+            "authorization decision binding the exported records to their tenant",
+        ],
+        "true_positive_step": "CROSS_TENANT_EXPORT_TEST",
+        "benign_twin_step": "BRAVO_EXPORT_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _EXPORT_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -956,6 +989,47 @@ def evaluate_search_authz_detection(
         technique="CROSS_TENANT_SEARCH_RESULT_ACCESS",
         declared_steps=_SEARCH_AUTHZ_STEPS,
         detection_requirement=_SEARCH_AUTHZ_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_export_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the cross-tenant export replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("EXPORT_AUTHZ receipt must be an object")
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("export authorization request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("export authorization contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"alpha_control_passed", "bravo_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("export authorization controls are inconsistent")
+    passed = controls == {"alpha_control_passed": True, "bravo_control_passed": True}
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not passed or reason != "ALPHA_OBSERVED_BRAVO_EXPORT_CANARY":
+            raise BlueObservationError("export authorization confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not passed or reason != "ALPHA_BRAVO_EXPORT_DENIED":
+            raise BlueObservationError("export authorization falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "ALPHA_CONTROL_FAILED", "BRAVO_CONTROL_FAILED", "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED", "TEST_REDIRECTED", "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("export authorization inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("export authorization epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="EXPORT_AUTHZ",
+        capability="http-export-authorization-differential",
+        technique="CROSS_TENANT_EXPORT_ACCESS", declared_steps=_EXPORT_AUTHZ_STEPS,
+        detection_requirement=_EXPORT_AUTHZ_DETECTION_REQUIREMENT,
     )
 
 

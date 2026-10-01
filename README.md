@@ -62,6 +62,7 @@ agentic security product uses the first design.
 | Collection isolation | Can one tenant member list another tenant's collection? | Two legitimate collection controls precede a credential-only replay; a foreign canary, not an empty `200`, proves disclosure |
 | Token scope enforcement | Can a narrow token read a resource reserved for a broader scope? | Broad and narrow controls precede a credential-only replay; the privileged canary, not `200`, proves excess authority |
 | Search isolation | Can one tenant's search return another tenant's result? | Two tenant controls precede a credential-only replay of the same query; the foreign result canary proves disclosure |
+| Export isolation | Can one tenant retrieve another tenant's generated export? | Two tenant export controls precede a credential-only replay; only the foreign export canary proves disclosure, while empty success is inconclusive |
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | Mass assignment / BOPLA | Can a low-privilege actor modify a protected property? | Allowed-field control, observer read-back, and verified two-field restoration |

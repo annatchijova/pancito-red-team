@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "experiment_id": "EXPORT-LOCAL-001",
+  "authorization_reference": "replace-with-written-loopback-scope",
+  "authorized_by": "replace-with-operator-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "alpha_export_path": "/tenants/alpha/export.csv",
+  "bravo_export_path": "/tenants/bravo/export.csv",
+  "tenant_segment_index": 1,
+  "alpha_principal_id": "alpha-member",
+  "bravo_principal_id": "bravo-member",
+  "alpha_token_env": "PANCITO_EXPORT_ALPHA_TOKEN",
+  "bravo_token_env": "PANCITO_EXPORT_BRAVO_TOKEN",
+  "alpha_canary_env": "PANCITO_EXPORT_ALPHA_CANARY",
+  "bravo_canary_env": "PANCITO_EXPORT_BRAVO_CANARY",
+  "timeout_ms": 2000,
+  "max_response_bytes": 65536
+}

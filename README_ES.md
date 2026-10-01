@@ -63,6 +63,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Aislamiento de colecciones | ¿Un miembro de un tenant puede listar la colección de otro? | Dos controles legítimos antes de un replay que sólo cambia credencial; demuestra exposición el canario ajeno, no un `200` vacío |
 | Enforcement de scope | ¿Un token limitado puede leer un recurso reservado para un scope más amplio? | Controles amplio/limitado antes de un replay que sólo cambia credencial; demuestra exceso de autoridad el canario privilegiado, no un `200` |
 | Aislamiento de búsqueda | ¿La búsqueda de un tenant puede devolver resultados de otro? | Dos controles antes de repetir la misma consulta cambiando sólo la credencial; el canario ajeno demuestra exposición |
+| Aislamiento de exportaciones | ¿Un tenant puede recuperar la exportación generada por otro? | Dos controles preceden un replay que sólo cambia la credencial; sólo el canario ajeno demuestra exposición y un éxito vacío es inconcluso |
 | Diferencial de autenticación | ¿Datos protegidos sobreviven credenciales ausentes o inválidas? | Un 2xx no alcanza sin observar el canario protegido |
 | Cambio de estado público | ¿Una identidad anónima o inválida puede mutar un campo? | Read-back autenticado y restauración verificada |
 | Mass assignment / BOPLA | ¿Un actor de bajo privilegio puede modificar una propiedad protegida? | Control sobre campo permitido, read-back del observador y restauración verificada de ambos campos |

@@ -12,7 +12,7 @@ custody, agent, and service modules. The supported offensive product surface is:
 
 1. deterministic replay of committed hostile telemetry;
 2. passive local OpenAPI triage and provenance-preserving handoff;
-3. eleven curated HTTP differentials restricted to literal loopback origins;
+3. twelve curated HTTP differentials restricted to literal loopback origins;
 4. four offline SIFT differentials over module-owned synthetic data;
 5. deterministic Purple evaluation of operator-supplied Blue evidence; and
 6. optional model narration after consequential values already exist.
@@ -266,6 +266,9 @@ python3 -m offensive.scope_authz_cli examples/scope-authz.loopback.json
 python3 -m offensive.search_authz_cli --dry-run examples/search-authz.loopback.json
 python3 -m offensive.search_authz_cli examples/search-authz.loopback.json
 
+python3 -m offensive.export_authz_cli --dry-run examples/export-authz.loopback.json
+python3 -m offensive.export_authz_cli examples/export-authz.loopback.json
+
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json
 
@@ -300,6 +303,7 @@ python3 -m offensive.purple_cli function-authz red-receipt.json blue-observation
 python3 -m offensive.purple_cli collection-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli scope-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli search-authz red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli export-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli mass-assignment red-receipt.json blue-observation.json
