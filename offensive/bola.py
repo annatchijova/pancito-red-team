@@ -15,6 +15,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import SplitResult, urlsplit
 
+from offensive.handoff import BolaCandidateHandoff, path_matches_candidate_template
+
 
 _ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 _DENIAL_STATUSES = frozenset({401, 403, 404})
@@ -109,6 +111,7 @@ class BolaPlan:
     peer_canary: str = field(repr=False)
     timeout_ms: int = 2_000
     max_response_bytes: int = 16_384
+    candidate_handoff: BolaCandidateHandoff | None = None
 
     def __post_init__(self) -> None:
         if not _ID_RE.fullmatch(_bounded_text(self.experiment_id, "experiment_id", 128)):
@@ -139,6 +142,17 @@ class BolaPlan:
             raise BolaPlanError(
                 "max_response_bytes must be between 1024 and 1048576"
             )
+        if self.candidate_handoff is not None:
+            if not isinstance(self.candidate_handoff, BolaCandidateHandoff):
+                raise BolaPlanError("candidate_handoff must be a BolaCandidateHandoff")
+            if not path_matches_candidate_template(
+                self.candidate_handoff, owner_path
+            ) or not path_matches_candidate_template(
+                self.candidate_handoff, peer_path
+            ):
+                raise BolaPlanError(
+                    "owner and peer paths must match the candidate path template"
+                )
 
 
 @dataclass(frozen=True)
@@ -323,4 +337,9 @@ def run_bola_experiment(
         "model_used": False,
         "part_of_forensic_verdict": False,
         "receipt_integrity": "UNSEALED",
+        "candidate_provenance": (
+            plan.candidate_handoff.to_receipt()
+            if plan.candidate_handoff is not None
+            else None
+        ),
     }

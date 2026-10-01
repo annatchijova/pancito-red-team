@@ -14,6 +14,7 @@ from offensive.bola import (
     BolaPlanError,
     run_bola_experiment,
 )
+from offensive.handoff import BolaCandidateHandoff
 
 
 OWNER_TOKEN = "owner-token-for-test"
@@ -202,3 +203,22 @@ def test_receipt_contains_hashes_and_booleans_but_no_bodies_or_tokens(bola_lab):
 def test_credential_repr_never_exposes_the_token():
     credential = BearerCredential("principal-a", OWNER_TOKEN)
     assert OWNER_TOKEN not in repr(credential)
+
+
+def test_execution_receipt_keeps_candidate_provenance_at_candidate_level(bola_lab):
+    origin, handler = bola_lab
+    handler.vulnerable = True
+    owner, peer = _credentials()
+    handoff = BolaCandidateHandoff(
+        candidate_id="CANDIDATE-0123456789abcdef",
+        source_label="api/openapi.json@def456",
+        source_sha256="a" * 64,
+        entry_point="GET /objects/{object_id}",
+    )
+
+    result = run_bola_experiment(
+        _plan(origin, candidate_handoff=handoff), owner=owner, peer=peer
+    )
+
+    assert result["candidate_provenance"] == handoff.to_receipt()
+    assert result["candidate_provenance"]["epistemic_level"] == "CANDIDATE"
