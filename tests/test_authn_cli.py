@@ -51,6 +51,18 @@ def _environment() -> dict[str, str]:
     }
 
 
+def _candidate_handoff() -> dict[str, str]:
+    return {
+        "candidate_id": "CANDIDATE-0123456789abcdef",
+        "source_label": "api/openapi.json@authn789",
+        "source_sha256": "a" * 64,
+        "entry_point": "GET /protected",
+        "json_pointer": "/paths/~1protected/get",
+        "epistemic_level": "CANDIDATE",
+        "integrity": "UNSEALED_TRIAGE_HANDOFF",
+    }
+
+
 def test_preflight_validates_all_secrets_and_plan_without_execution():
     manifest = parse_authn_manifest(_manifest())
     secrets = resolve_authn_secrets(manifest, _environment())
@@ -65,6 +77,33 @@ def test_preflight_validates_all_secrets_and_plan_without_execution():
     assert VALID_TOKEN not in serialized
     assert PROTECTED_CANARY not in serialized
     assert INVALID_BEARER not in serialized
+
+
+def test_optional_candidate_handoff_survives_preflight_without_promotion():
+    manifest = parse_authn_manifest(
+        _manifest(candidate_handoff=_candidate_handoff())
+    )
+    secrets = resolve_authn_secrets(manifest, _environment())
+
+    result = preflight_authn_manifest(manifest, secrets)
+
+    assert result["candidate_provenance"] == _candidate_handoff()
+    assert result["candidate_provenance"]["epistemic_level"] == "CANDIDATE"
+
+
+def test_candidate_handoff_rejects_route_drift_and_promoted_level():
+    with pytest.raises(AuthnManifestError, match="must be an object"):
+        parse_authn_manifest(_manifest(candidate_handoff=None))
+
+    promoted = _candidate_handoff()
+    promoted["epistemic_level"] = "CONFIRMED_BY_INDUCTION"
+    with pytest.raises(AuthnManifestError, match="epistemic_level"):
+        parse_authn_manifest(_manifest(candidate_handoff=promoted))
+
+    drifted = _candidate_handoff()
+    drifted["entry_point"] = "GET /admin"
+    with pytest.raises(AuthnManifestError, match="candidate path template"):
+        parse_authn_manifest(_manifest(candidate_handoff=drifted))
 
 
 def test_missing_secret_fails_atomically_and_names_only_the_source():

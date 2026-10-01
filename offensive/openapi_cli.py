@@ -10,7 +10,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from offensive.handoff import HandoffError, select_bola_candidate
+from offensive.handoff import (
+    HandoffError,
+    select_authn_candidate,
+    select_bola_candidate,
+)
 from offensive.local_artifact import LocalArtifactError, read_bounded_regular_file
 from offensive.openapi_surface import (
     AssetAnnotation,
@@ -178,10 +182,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="pancito-openapi",
         description="Passively triage an authorized OpenAPI JSON artifact.",
     )
-    parser.add_argument(
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
         "--select",
         metavar="CANDIDATE_ID",
         help="Emit one ranked BOLA candidate handoff instead of the full receipt",
+    )
+    selection.add_argument(
+        "--select-authn",
+        metavar="CANDIDATE_ID",
+        help=(
+            "Emit one ranked authentication candidate handoff instead of the "
+            "full receipt"
+        ),
     )
     parser.add_argument("openapi", help="Path to an OpenAPI 3.x JSON document")
     parser.add_argument("manifest", help="Path to the strict triage plan JSON")
@@ -193,6 +206,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         result: dict[str, object] = receipt
         if args.select is not None:
             result = select_bola_candidate(receipt, args.select).to_receipt()
+        elif args.select_authn is not None:
+            result = select_authn_candidate(
+                receipt, args.select_authn
+            ).to_receipt()
     except (OpenApiCliError, OpenApiTriageError, HandoffError) as exc:
         print(f"PANCITO_OPENAPI_CONFIG_ERROR: {exc}", file=sys.stderr)
         return 2

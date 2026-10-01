@@ -11,6 +11,10 @@ from dataclasses import dataclass, field
 from urllib.parse import SplitResult, urlsplit
 
 from offensive.bola import BearerCredential
+from offensive.handoff import (
+    AuthnCandidateHandoff,
+    authn_path_matches_candidate_template,
+)
 from offensive.purple import authn_blue_objective, exercise_marker
 
 
@@ -85,6 +89,7 @@ class AuthnPlan:
     invalid_bearer: str = field(repr=False)
     timeout_ms: int = 2_000
     max_response_bytes: int = 16_384
+    candidate_handoff: AuthnCandidateHandoff | None = None
 
     def __post_init__(self) -> None:
         experiment_id = _text(self.experiment_id, "experiment_id", 128)
@@ -115,6 +120,17 @@ class AuthnPlan:
             raise AuthnPlanError(
                 "max_response_bytes must be between 1024 and 1048576"
             )
+        if self.candidate_handoff is not None:
+            if not isinstance(self.candidate_handoff, AuthnCandidateHandoff):
+                raise AuthnPlanError(
+                    "candidate_handoff must be an AuthnCandidateHandoff"
+                )
+            if not authn_path_matches_candidate_template(
+                self.candidate_handoff, self.protected_path
+            ):
+                raise AuthnPlanError(
+                    "protected path must match the candidate path template"
+                )
 
 
 @dataclass(frozen=True)
@@ -298,6 +314,11 @@ def run_authn_experiment(
         "valid_control": control.public(),
         "anonymous_test": anonymous.public(),
         "invalid_bearer_test": invalid.public(),
+        "candidate_provenance": (
+            plan.candidate_handoff.to_receipt()
+            if plan.candidate_handoff is not None
+            else None
+        ),
         "blue_objective": authn_blue_objective(plan.experiment_id),
         "model_used": False,
         "part_of_forensic_verdict": False,

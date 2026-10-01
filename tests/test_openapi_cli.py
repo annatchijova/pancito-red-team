@@ -16,6 +16,9 @@ from offensive.openapi_cli import (
 
 
 CANDIDATE_ID = "CANDIDATE-901da4b8d7484700"
+AUTHN_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
+    b"AUTHENTICATION_ENFORCEMENT_REVIEW\x00GET /objects/{id}"
+).hexdigest()[:16]
 
 
 def _spec() -> bytes:
@@ -96,6 +99,28 @@ def test_cli_select_emits_only_loss_resistant_bola_handoff(tmp_path, capsys):
     assert captured.err == ""
     assert result == {
         "candidate_id": CANDIDATE_ID,
+        "entry_point": "GET /objects/{id}",
+        "epistemic_level": "CANDIDATE",
+        "integrity": "UNSEALED_TRIAGE_HANDOFF",
+        "json_pointer": "/paths/~1objects~1{id}/get",
+        "source_label": "api/openapi.json@ghi789",
+        "source_sha256": hashlib.sha256(_spec()).hexdigest(),
+    }
+
+
+def test_cli_select_authn_emits_only_loss_resistant_authn_handoff(tmp_path, capsys):
+    spec, manifest = _files(tmp_path)
+
+    exit_code = main(
+        ["--select-authn", AUTHN_CANDIDATE_ID, str(spec), str(manifest)]
+    )
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert result == {
+        "candidate_id": AUTHN_CANDIDATE_ID,
         "entry_point": "GET /objects/{id}",
         "epistemic_level": "CANDIDATE",
         "integrity": "UNSEALED_TRIAGE_HANDOFF",

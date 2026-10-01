@@ -26,6 +26,7 @@ _REACHABILITY_POINTS = {
 }
 _PLAUSIBILITY_POINTS = {
     "OBJECT_AUTHORIZATION_REVIEW": 3,
+    "AUTHENTICATION_ENFORCEMENT_REVIEW": 2,
     "PUBLIC_STATE_CHANGE_REVIEW": 3,
     "FILE_INGRESS_REVIEW": 2,
 }
@@ -335,6 +336,21 @@ def triage_openapi(raw: bytes, plan: OpenApiTriagePlan) -> dict[str, object]:
                     falsifier=(
                         "Authorization enforcement binds the selected object to the "
                         "authenticated principal before data is returned."
+                    ),
+                    **common,
+                )
+            )
+        if item["method"] == "GET" and reachability == "AUTHENTICATED_DECLARED":
+            candidates.append(
+                _candidate(
+                    candidate_type="AUTHENTICATION_ENFORCEMENT_REVIEW",
+                    basis=(
+                        "The document declares that this read operation requires "
+                        "authentication; runtime enforcement remains unobserved."
+                    ),
+                    falsifier=(
+                        "A runtime differential shows the protected marker only "
+                        "with a valid credential and denies both negative cells."
                     ),
                     **common,
                 )

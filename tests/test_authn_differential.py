@@ -11,6 +11,7 @@ import pytest
 from offensive.authn import AuthnPlan, AuthnPlanError, run_authn_experiment
 from offensive.authn_cli import main as authn_cli_main
 from offensive.bola import BearerCredential
+from offensive.handoff import AuthnCandidateHandoff
 
 
 VALID_TOKEN = "valid-authn-token-canary"
@@ -273,3 +274,22 @@ def test_cli_executes_the_real_three_cell_experiment_without_disclosing_secrets(
     assert VALID_TOKEN not in captured.out
     assert INVALID_TOKEN not in captured.out
     assert PROTECTED_CANARY not in captured.out
+
+
+def test_execution_receipt_keeps_authn_candidate_at_candidate_level(authn_lab):
+    origin, _handler = authn_lab
+    handoff = AuthnCandidateHandoff(
+        candidate_id="CANDIDATE-0123456789abcdef",
+        source_label="api/openapi.json@authn789",
+        source_sha256="a" * 64,
+        entry_point="GET /protected",
+        json_pointer="/paths/~1protected/get",
+    )
+
+    result = run_authn_experiment(
+        _plan(origin, candidate_handoff=handoff), valid=_credential()
+    )
+
+    assert result["epistemic_level"] == "FALSIFIED"
+    assert result["candidate_provenance"] == handoff.to_receipt()
+    assert result["candidate_provenance"]["epistemic_level"] == "CANDIDATE"

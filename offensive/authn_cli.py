@@ -15,6 +15,7 @@ from typing import Any
 
 from offensive.authn import AuthnPlan, AuthnPlanError, run_authn_experiment
 from offensive.bola import BearerCredential
+from offensive.handoff import AuthnCandidateHandoff, HandoffError
 from offensive.local_artifact import LocalArtifactError, read_bounded_regular_file
 from offensive.secrets import SecretValue, SecretValueError
 
@@ -37,6 +38,19 @@ _FIELDS = frozenset(
         "invalid_bearer_env",
         "timeout_ms",
         "max_response_bytes",
+        "candidate_handoff",
+    }
+)
+_REQUIRED_FIELDS = _FIELDS - {"candidate_handoff"}
+_HANDOFF_FIELDS = frozenset(
+    {
+        "candidate_id",
+        "source_label",
+        "source_sha256",
+        "entry_point",
+        "json_pointer",
+        "epistemic_level",
+        "integrity",
     }
 )
 
@@ -90,6 +104,7 @@ class AuthnManifest:
     invalid_bearer_env: str
     timeout_ms: int
     max_response_bytes: int
+    candidate_handoff: AuthnCandidateHandoff | None = None
 
     @property
     def secret_environment_names(self) -> tuple[str, str, str]:
@@ -135,7 +150,7 @@ def parse_authn_manifest(raw: bytes) -> AuthnManifest:
     if not isinstance(data, dict):
         raise AuthnManifestError("authentication manifest root must be an object")
     unknown = sorted(set(data) - _FIELDS)
-    missing = sorted(_FIELDS - set(data))
+    missing = sorted(_REQUIRED_FIELDS - set(data))
     if unknown:
         raise AuthnManifestError(f"unknown fields: {', '.join(unknown)}")
     if missing:
@@ -178,6 +193,40 @@ def parse_authn_manifest(raw: bytes) -> AuthnManifest:
     if isinstance(maximum, bool) or not isinstance(maximum, int):
         raise AuthnManifestError("max_response_bytes must be an integer")
 
+    handoff: AuthnCandidateHandoff | None = None
+    if "candidate_handoff" in data:
+        raw_handoff = data["candidate_handoff"]
+        if not isinstance(raw_handoff, dict):
+            raise AuthnManifestError("candidate_handoff must be an object")
+        unknown_handoff = sorted(set(raw_handoff) - _HANDOFF_FIELDS)
+        missing_handoff = sorted(_HANDOFF_FIELDS - set(raw_handoff))
+        if unknown_handoff:
+            raise AuthnManifestError(
+                "unknown candidate_handoff fields: " + ", ".join(unknown_handoff)
+            )
+        if missing_handoff:
+            raise AuthnManifestError(
+                "missing candidate_handoff fields: " + ", ".join(missing_handoff)
+            )
+        if raw_handoff["epistemic_level"] != "CANDIDATE":
+            raise AuthnManifestError(
+                "candidate_handoff epistemic_level must remain CANDIDATE"
+            )
+        if raw_handoff["integrity"] != "UNSEALED_TRIAGE_HANDOFF":
+            raise AuthnManifestError(
+                "candidate_handoff integrity must be UNSEALED_TRIAGE_HANDOFF"
+            )
+        try:
+            handoff = AuthnCandidateHandoff(
+                candidate_id=_text(raw_handoff, "candidate_id", 128),
+                source_label=_text(raw_handoff, "source_label", 512),
+                source_sha256=_text(raw_handoff, "source_sha256", 64),
+                entry_point=_text(raw_handoff, "entry_point", 2_128),
+                json_pointer=_text(raw_handoff, "json_pointer", 2_048),
+            )
+        except HandoffError as exc:
+            raise AuthnManifestError(f"candidate_handoff: {exc}") from exc
+
     manifest = AuthnManifest(
         schema_version=1,
         experiment_id=experiment_id,
@@ -192,6 +241,7 @@ def parse_authn_manifest(raw: bytes) -> AuthnManifest:
         invalid_bearer_env=environment_names[2],
         timeout_ms=timeout_ms,
         max_response_bytes=maximum,
+        candidate_handoff=handoff,
     )
     try:
         _build_plan(
@@ -264,6 +314,7 @@ def _build_plan(manifest: AuthnManifest, secrets: ResolvedAuthnSecrets) -> Authn
         invalid_bearer=secrets.invalid_bearer.reveal(),
         timeout_ms=manifest.timeout_ms,
         max_response_bytes=manifest.max_response_bytes,
+        candidate_handoff=manifest.candidate_handoff,
     )
 
 
@@ -283,6 +334,11 @@ def preflight_authn_manifest(
         "active_probe_performed": False,
         "model_used": False,
         "part_of_forensic_verdict": False,
+        "candidate_provenance": (
+            manifest.candidate_handoff.to_receipt()
+            if manifest.candidate_handoff is not None
+            else None
+        ),
     }
 
 

@@ -120,6 +120,28 @@ def test_operation_security_override_is_not_mistaken_for_inherited_authenticatio
     assert candidate["priority_score"] == 18
 
 
+def test_authenticated_get_route_becomes_a_separate_authn_enforcement_candidate():
+    raw = _document(
+        {"/profile": {"get": {"responses": {"200": {"description": "profile"}}}}}
+    )
+    annotation = AssetAnnotation(
+        entry_point="GET /profile",
+        value=3,
+        basis="Authenticated user profile",
+    )
+
+    result = triage_openapi(raw, _plan(annotation))
+
+    assert len(result["candidate_queue"]) == 1
+    candidate = result["candidate_queue"][0]
+    assert candidate["candidate_type"] == "AUTHENTICATION_ENFORCEMENT_REVIEW"
+    assert candidate["entry_point"] == "GET /profile"
+    assert candidate["reachability"] == "AUTHENTICATED_DECLARED"
+    assert candidate["priority_score"] == 12
+    assert candidate["epistemic_level"] == "CANDIDATE"
+    assert "runtime" in candidate["falsifier"].lower()
+
+
 def test_absent_security_is_unknown_not_public():
     raw = _document(
         {
