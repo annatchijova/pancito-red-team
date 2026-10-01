@@ -247,6 +247,7 @@ def test_receipt_is_secret_free_and_blue_marked(mass_assignment_lab):
         {"allowed_field": "role"},
         {"target_origin": "https://127.0.0.1:8443"},
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
         {"resource_path": "/profiles/mine?role=owner"},
     ],
 )

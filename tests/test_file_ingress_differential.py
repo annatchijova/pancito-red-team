@@ -238,7 +238,12 @@ def test_blue_marker_covers_upload_readback_and_cleanup(upload_lab):
 
 @pytest.mark.parametrize(
     "origin",
-    ["https://127.0.0.1", "http://10.0.0.2", "http://127.0.0.1/base"],
+    [
+        "https://127.0.0.1",
+        "http://10.0.0.2",
+        "http://127.0.0.1/base",
+        "http://127.0.0.1:0",
+    ],
 )
 def test_non_loopback_or_ambiguous_origins_are_rejected(origin):
     with pytest.raises(FileIngressPlanError):

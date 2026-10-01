@@ -145,6 +145,7 @@ def test_receipt_is_secret_free_and_blue_marked(scope_lab):
 
 @pytest.mark.parametrize("overrides", [
     {"target_origin": "http://10.0.0.8:8080"},
+    {"target_origin": "http://127.0.0.1:0"},
     {"privileged_resource_path": "/scoped/privileged?format=json"},
     {"privileged_resource_path": "/broad/%72eport"},
     {"privileged_resource_path": "/broad//report"},

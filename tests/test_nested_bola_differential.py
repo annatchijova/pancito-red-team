@@ -172,6 +172,7 @@ def test_redirect_is_not_followed(nested_lab):
         {"parent_segment_index": 3, "child_segment_index": 1},
         {"owner_control_path": "/orgs/a/docs/%61-doc"},
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
     ],
 )
 def test_plan_rejects_non_differential_or_ambiguous_path_matrices(overrides):

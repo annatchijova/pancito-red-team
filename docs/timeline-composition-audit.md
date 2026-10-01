@@ -4,8 +4,9 @@
 **Method:** abductive engineering and adversarial induction  
 **Original vulnerable base:** `main` at `209db4d`
 **Original result:** confirmed synthetic-contract detection gap
-**Current workspace result:** remediated in the uncommitted audit working tree;
-synthetic regression now passes
+**Remediation commit:** `2b7d16c`
+**Current result:** unique-basename synthetic regression passes; ambiguous
+subjects remain uncorrelated
 
 ## Threat model
 

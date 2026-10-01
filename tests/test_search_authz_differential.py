@@ -191,6 +191,7 @@ def test_receipt_omits_tokens_queries_and_canaries(search_lab):
     "overrides",
     [
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
         {"search_path": "/api/%73earch"},
         {"search_path": "/api//search"},
         {"search_path": "/api/../search"},

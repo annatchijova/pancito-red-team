@@ -169,6 +169,7 @@ def test_receipt_omits_tokens_and_canaries(export_lab):
     "overrides",
     [
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
         {"alpha_export_path": "/tenants/%61lpha/export.csv"},
         {"alpha_export_path": "/tenants//export.csv"},
         {"alpha_export_path": "/tenants/../export.csv"},

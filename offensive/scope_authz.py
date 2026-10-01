@@ -46,7 +46,8 @@ def _origin(value: object) -> SplitResult:
         address = ipaddress.ip_address(parsed.hostname)
     except ValueError as exc:
         raise ScopeAuthorizationPlanError("target_origin must use literal loopback") from exc
-    if not address.is_loopback or not 1 <= (port or 80) <= 65_535:
+    effective_port = 80 if port is None else port
+    if not address.is_loopback or not 1 <= effective_port <= 65_535:
         raise ScopeAuthorizationPlanError("target_origin must use valid loopback")
     return parsed
 
@@ -124,8 +125,11 @@ class _Observation:
 def _observe(plan, origin, path, credential) -> _Observation:
     connection = None
     try:
-        connection = http.client.HTTPConnection(origin.hostname, origin.port or 80,
-                                                timeout=plan.timeout_ms / 1_000)
+        connection = http.client.HTTPConnection(
+            origin.hostname,
+            origin.port if origin.port is not None else 80,
+            timeout=plan.timeout_ms / 1_000,
+        )
         connection.request("GET", path, headers={
             "Authorization": f"Bearer {credential.token}", "Accept": "application/json",
             "User-Agent": "pancito-red-team/scope-authz-lab",

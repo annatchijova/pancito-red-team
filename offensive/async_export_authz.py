@@ -59,7 +59,8 @@ def _origin(value: object) -> SplitResult:
         raise AsyncExportAuthorizationPlanError(
             "target_origin must use a literal loopback IP"
         ) from exc
-    if not address.is_loopback or not 1 <= (port or 80) <= 65_535:
+    effective_port = 80 if port is None else port
+    if not address.is_loopback or not 1 <= effective_port <= 65_535:
         raise AsyncExportAuthorizationPlanError("target_origin must use valid loopback")
     return parsed
 
@@ -183,7 +184,9 @@ def _request(
     connection: http.client.HTTPConnection | None = None
     try:
         connection = http.client.HTTPConnection(
-            origin.hostname, origin.port or 80, timeout=plan.timeout_ms / 1_000
+            origin.hostname,
+            origin.port if origin.port is not None else 80,
+            timeout=plan.timeout_ms / 1_000,
         )
         headers = {
             "Authorization": f"Bearer {credential.token}",

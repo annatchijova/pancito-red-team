@@ -229,6 +229,7 @@ def test_receipt_omits_secrets_and_marks_every_request_for_blue(stale_lab):
     [
         {"target_origin": "https://127.0.0.1:8443"},
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
         {"resource_path": "/protected/report?fresh=true"},
         {"membership_field": "role/nested"},
         {"revoked_marker": ACTIVE},

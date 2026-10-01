@@ -239,6 +239,7 @@ def test_receipt_never_contains_credentials_or_canaries(async_export_lab):
 
 @pytest.mark.parametrize("overrides", [
     {"target_origin": "http://192.0.2.1:8080"},
+    {"target_origin": "http://127.0.0.1:0"},
     {"alpha_create_path": "http://127.0.0.1/tenants/alpha/exports"},
     {"bravo_jobs_path": "/tenants/other/exports"},
     {"bravo_canary": ALPHA_CANARY},

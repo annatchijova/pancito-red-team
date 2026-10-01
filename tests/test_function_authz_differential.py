@@ -140,6 +140,7 @@ def test_receipt_is_secret_free_and_blue_marked(function_lab):
 
 @pytest.mark.parametrize("overrides", [
     {"target_origin": "http://10.0.0.8:8080"},
+    {"target_origin": "http://127.0.0.1:0"},
     {"admin_path": "/admin/report?format=json"},
     {"admin_path": "/admin/%72eport"},
     {"admin_path": "/admin//report"},

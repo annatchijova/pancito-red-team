@@ -169,6 +169,7 @@ def test_receipt_is_secret_free_and_blue_marked(collection_lab):
     "overrides",
     [
         {"target_origin": "http://10.0.0.8:8080"},
+        {"target_origin": "http://127.0.0.1:0"},
         {"alpha_collection_path": "/tenants/%61lpha/items"},
         {"alpha_collection_path": "/tenants//items"},
         {"alpha_collection_path": "/tenants/../items"},

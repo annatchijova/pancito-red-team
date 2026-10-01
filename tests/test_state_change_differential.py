@@ -291,6 +291,7 @@ def test_every_request_is_marked_for_blue_but_marker_is_not_detection(state_lab)
         "http://10.0.0.4:8080",
         "http://127.0.0.1:8080/base",
         "http://user:pass@127.0.0.1:8080",
+        "http://127.0.0.1:0",
     ],
 )
 def test_plan_rejects_non_loopback_or_ambiguous_origins(origin):

@@ -177,6 +177,7 @@ def test_redirect_is_not_followed_and_cannot_confirm_the_candidate(bola_lab):
         "http://127.0.0.1:8080/base",
         "http://user:pass@127.0.0.1:8080",
         "http://127.0.0.1:8080?x=1",
+        "http://127.0.0.1:0",
     ],
 )
 def test_plan_rejects_targets_outside_an_exact_loopback_origin(origin):

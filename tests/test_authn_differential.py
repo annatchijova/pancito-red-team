@@ -182,6 +182,7 @@ def test_http_200_without_protected_canary_is_not_a_bypass(authn_lab):
         "http://10.0.0.10:8080",
         "http://127.0.0.1:8080/base",
         "http://user:pass@127.0.0.1:8080",
+        "http://127.0.0.1:0",
     ],
 )
 def test_plan_rejects_non_loopback_or_ambiguous_origins(origin):
