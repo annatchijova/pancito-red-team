@@ -61,6 +61,7 @@ agentic security product uses the first design.
 | Authentication differential | Does protected data survive absent or invalid credentials? | A 2xx response is insufficient without the protected canary |
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | Mass assignment / BOPLA | Can a low-privilege actor modify a protected property? | Allowed-field control, observer read-back, and verified two-field restoration |
+| Stale authority | Does a pre-issued credential retain access after verified role revocation? | Same-token replay only after revoke read-back; restoration gates the conclusion |
 | File ingress | Does storage accept bytes that contradict type or size policy? | Three generated inert samples, exact digest/size read-back, verified deletion |
 | Forensic-evasion differential | Do SIFT sensors distinguish known timestomp and log-wipe traces from a clean control? | Three module-owned synthetic cells; exact ground truth stays separate from unsealed sensor observations |
 | Prefetch anti-forensics | Does SIFT distinguish suspicious execution and selective Prefetch removal? | Ten-file clean control plus fixed execution and wipe cells; temporary inert files only |

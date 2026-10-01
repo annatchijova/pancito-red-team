@@ -19,6 +19,7 @@ from offensive.purple import (
     evaluate_file_ingress_detection,
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
+    evaluate_stale_authority_detection,
     evaluate_state_change_detection,
 )
 
@@ -176,6 +177,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "file-ingress",
             "mass-assignment",
             "nested-bola",
+            "stale-authority",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -193,6 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "file-ingress": evaluate_file_ingress_detection,
             "mass-assignment": evaluate_mass_assignment_detection,
             "nested-bola": evaluate_nested_bola_detection,
+            "stale-authority": evaluate_stale_authority_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {

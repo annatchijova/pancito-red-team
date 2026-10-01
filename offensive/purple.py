@@ -66,6 +66,24 @@ _MASS_ASSIGNMENT_ALL_STEPS = (
     "NEGATIVE_RESTORE",
     "NEGATIVE_RESTORE_VERIFY",
 )
+_STALE_AUTHORITY_ALL_STEPS = (
+    "INITIAL_MEMBERSHIP_READ",
+    "ACTOR_PRE_REVOKE_CONTROL",
+    "ADMIN_REVOKE",
+    "ADMIN_REVOKE_VERIFY",
+    "STALE_CREDENTIAL_TEST",
+    "ADMIN_RESTORE",
+    "ADMIN_RESTORE_VERIFY",
+)
+_STALE_AUTHORITY_ALLOWED_SEQUENCES = frozenset(
+    {
+        _STALE_AUTHORITY_ALL_STEPS[:1],
+        _STALE_AUTHORITY_ALL_STEPS[:2],
+        _STALE_AUTHORITY_ALL_STEPS[:4],
+        _STALE_AUTHORITY_ALL_STEPS[:4] + _STALE_AUTHORITY_ALL_STEPS[-2:],
+        _STALE_AUTHORITY_ALL_STEPS,
+    }
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -95,6 +113,11 @@ _MASS_ASSIGNMENT_DETECTION_REQUIREMENT = (
     "Alert when a low-privilege principal changes a protected property. Required "
     "data: subject, route, resource owner, submitted fields, authorized fields, "
     "authorization decision, changed-field audit, and status."
+)
+_STALE_AUTHORITY_DETECTION_REQUIREMENT = (
+    "Alert when a credential accesses a protected resource after its principal's "
+    "role or membership was revoked. Required data: principal, credential/session "
+    "identifier, authority version, revocation event, route, decision, and status."
 )
 
 
@@ -295,6 +318,36 @@ def mass_assignment_blue_objective(
         "benign_twin_step": "ALLOWED_FIELD_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _MASS_ASSIGNMENT_DETECTION_REQUIREMENT,
+    }
+
+
+def stale_authority_blue_objective(
+    experiment_id: str, executed_steps: tuple[str, ...]
+) -> dict[str, object]:
+    """Declare Blue evidence for the exact authority transition executed."""
+    if not isinstance(executed_steps, tuple) or not executed_steps:
+        raise BlueObservationError("stale-authority executed_steps must be non-empty")
+    if executed_steps not in _STALE_AUTHORITY_ALLOWED_SEQUENCES:
+        raise BlueObservationError("stale-authority executed_steps are invalid")
+    return {
+        "technique": "STALE_AUTHORITY_AFTER_REVOCATION",
+        "attack_mapping": "UNMAPPED_AUTHORIZATION_TRANSITION",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(executed_steps),
+        "expected_event_count": len(executed_steps),
+        "maximum_event_count": len(_STALE_AUTHORITY_ALL_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "membership audit with actor, old role, new role, and authority version",
+            "resource access log with credential/session id and current authority version",
+            "authorization decision showing revocation-aware denial or stale grant",
+        ],
+        "true_positive_step": "STALE_CREDENTIAL_TEST",
+        "benign_twin_step": "ACTOR_PRE_REVOKE_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _STALE_AUTHORITY_DETECTION_REQUIREMENT,
     }
 
 
@@ -759,6 +812,43 @@ def evaluate_mass_assignment_detection(
         technique="BROKEN_OBJECT_PROPERTY_LEVEL_AUTHORIZATION",
         declared_steps=steps,
         detection_requirement=_MASS_ASSIGNMENT_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_stale_authority_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence without changing the revocation result."""
+    observations = receipt.get("observations")
+    if not isinstance(observations, list) or not observations:
+        raise BlueObservationError("stale-authority observations are invalid")
+    steps = tuple(item.get("step") if isinstance(item, dict) else None for item in observations)
+    if steps not in _STALE_AUTHORITY_ALLOWED_SEQUENCES:
+        raise BlueObservationError("stale-authority step order is invalid")
+    if receipt.get("request_count") != len(steps) or receipt.get("maximum_request_count") != 7:
+        raise BlueObservationError("stale-authority request budget is inconsistent")
+    if receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("stale-authority receipt overclaims impact")
+    level = receipt.get("epistemic_level")
+    restored = receipt.get("cleanup_status") == "RESTORED_TO_BASELINE"
+    verified = receipt.get("final_state_verified") is True
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not (receipt.get("revoke_verified") is True and
+                receipt.get("stale_access_observed") is True and restored and verified and
+                receipt.get("reason_code") == "STALE_CREDENTIAL_ACCESS_CONFIRMED"):
+            raise BlueObservationError("stale-authority confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not (receipt.get("revoke_verified") is True and
+                receipt.get("stale_access_observed") is False and restored and verified and
+                receipt.get("reason_code") == "REVOKED_CREDENTIAL_ACCESS_DENIED"):
+            raise BlueObservationError("stale-authority falsified result is inconsistent")
+    elif level != "INCONCLUSIVE":
+        raise BlueObservationError("stale-authority epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="STALE_AUTHORITY",
+        capability="http-stale-authority-differential",
+        technique="STALE_AUTHORITY_AFTER_REVOCATION", declared_steps=steps,
+        detection_requirement=_STALE_AUTHORITY_DETECTION_REQUIREMENT,
     )
 
 

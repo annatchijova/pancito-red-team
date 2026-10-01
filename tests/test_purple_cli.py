@@ -13,6 +13,7 @@ from offensive.purple import (
     file_ingress_blue_objective,
     mass_assignment_blue_objective,
     nested_bola_blue_objective,
+    stale_authority_blue_objective,
     state_change_blue_objective,
 )
 from offensive.purple_cli import (
@@ -137,7 +138,7 @@ def _receipt(technique: str = "bola") -> bytes:
             "final_state_verified": True,
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
-    else:
+    elif technique == "nested-bola":
         experiment_id = "PURPLE-CLI-NESTED-001"
         capability = "http-nested-bola-differential"
         objective = nested_bola_blue_objective(experiment_id)
@@ -151,6 +152,26 @@ def _receipt(technique: str = "bola") -> bytes:
             },
             "reason_code": "FOREIGN_CHILD_CANARY_OBSERVED",
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
+    else:
+        experiment_id = "PURPLE-CLI-STALE-001"
+        capability = "http-stale-authority-differential"
+        steps = (
+            "INITIAL_MEMBERSHIP_READ", "ACTOR_PRE_REVOKE_CONTROL",
+            "ADMIN_REVOKE", "ADMIN_REVOKE_VERIFY", "STALE_CREDENTIAL_TEST",
+            "ADMIN_RESTORE", "ADMIN_RESTORE_VERIFY",
+        )
+        objective = stale_authority_blue_objective(experiment_id, steps)
+        extra = {
+            "reason_code": "STALE_CREDENTIAL_ACCESS_CONFIRMED",
+            "revoke_verified": True,
+            "stale_access_observed": True,
+            "cleanup_status": "RESTORED_TO_BASELINE",
+            "final_state_verified": True,
+            "request_count": 7,
+            "maximum_request_count": 7,
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+            "observations": [{"step": step} for step in steps],
         }
     return json.dumps(
         {
@@ -189,8 +210,14 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
             "PURPLE-CLI-MASS-001",
             tuple(item["step"] for item in receipt["observations"]),
         )
-    else:
+    elif technique == "nested-bola":
         objective = nested_bola_blue_objective("PURPLE-CLI-NESTED-001")
+    else:
+        receipt = json.loads(_receipt(technique))
+        objective = stale_authority_blue_objective(
+            "PURPLE-CLI-STALE-001",
+            tuple(item["step"] for item in receipt["observations"]),
+        )
     value = {
         "schema_version": 1,
         "exercise_marker": objective["exercise_marker"],
@@ -245,6 +272,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         "file-ingress",
         "mass-assignment",
         "nested-bola",
+        "stale-authority",
     ],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(

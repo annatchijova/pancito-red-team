@@ -8,8 +8,8 @@ of base commit `c570ecc` and the current working tree.
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Stale authority after role revocation | Authenticated request with an already-issued token | AUTHENTICATED | Revoked privileges and tenant data | No current capability models a transition from valid authority to revoked authority | Current `offensive/` capability catalogue | Both session and token lose access within the declared invalidation contract | CANDIDATE |
-| 2 | Nested-resource authorization mismatch | `/parents/{p}/children/{c}` | AUTHENTICATED | Cross-tenant child resources | Parent and child authorization may be resolved independently; a bounded child-only differential now exists | `offensive/nested_bola.py` | Swapping only the child identifier is denied and returns no foreign canary | CANDIDATE |
+| 1 | Stale authority after role revocation | Authenticated request with an already-issued token | AUTHENTICATED | Revoked privileges and tenant data | Authority may be cached in an issued credential; a bounded reversible transition now exists | `offensive/stale_authority.py` | The same credential loses protected access after verified revocation | CANDIDATE |
+| 2 | Nested-resource authorization mismatch | `/parents/{p}/children/{c}` | AUTHENTICATED | Cross-tenant child resources | Parent and child authorization may be resolved independently; a bounded child-only differential exists | `offensive/nested_bola.py` | Swapping only the child identifier is denied and returns no foreign canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 

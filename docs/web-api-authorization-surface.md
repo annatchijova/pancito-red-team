@@ -22,9 +22,10 @@ restore, stale-session use, and scoped-token enforcement are not yet covered.
 | Anonymous / invalid credential | Publicly reachable mutable resource | Update | Denied | State-change differential with authenticated read-back and restoration |
 | Low-privilege actor | Own allowed property | Update | Allowed | Mass-assignment positive control |
 | Low-privilege actor | Own protected property | Update | Denied | Mass-assignment negative cell with observer read-back |
+| Pre-issued actor credential | Role-protected resource after revocation | Read | Denied | Stale-authority transition with revoke read-back and compensating restoration |
 
-Cells not tested remain unknown. In particular, the matrix does not cover stale
-tokens after revocation, same-tenant role changes, child writes, inference from
+Cells not tested remain unknown. In particular, the matrix does not cover
+multi-node revocation propagation, same-tenant role changes, child writes, inference from
 error differences, browser-only controls, asynchronous jobs, GraphQL, or remote
 production targets.
 
