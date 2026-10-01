@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PANCITO-RED-TEAM Architecture",
+    "locale": "en",
+    "output": "pancito-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [980, 430],
+    "repository": {
+      "url": "https://github.com/annatchijova/pancito-red-team",
+      "revision": "e5c60a4de0464ed172fb6291dba9a78711359096"
+    },
+    "views": [
+      {
+        "id": "offensive-path",
+        "label": "Bounded offensive path",
+        "focus": ["operator", "manifest", "boundary", "executor", "sealedCore", "receipt"],
+        "note": "Follow an authorized experiment from operator scope to a deterministic receipt."
+      },
+      {
+        "id": "blue-path",
+        "label": "Blue validation",
+        "focus": ["blueEvidence", "purpleEvaluator", "receipt"],
+        "note": "Blue telemetry is evaluated beside the Red result and cannot rewrite it."
+      },
+      {
+        "id": "model-boundary",
+        "label": "Model boundary",
+        "focus": ["receipt", "kassandra", "narrator"],
+        "note": "The model can narrate sealed facts but has no decision or sealing path."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Authorized operator",
+      "sublabel": "Written scope",
+      "pos": [20, 180],
+      "size": [132, 72]
+    },
+    {
+      "id": "manifest",
+      "type": "security",
+      "label": "Strict manifest",
+      "sublabel": "Target + budget + secret refs",
+      "pos": [176, 180],
+      "size": [132, 72],
+      "sources": [
+        {"path": "offensive/engagement.py", "label": "Engagement boundary"},
+        {"path": "offensive/file_ingress_cli.py", "label": "Active CLI boundary"}
+      ]
+    },
+    {
+      "id": "boundary",
+      "type": "security",
+      "label": "Capability boundary",
+      "sublabel": "Catalogue + loopback target",
+      "tag": "fail closed",
+      "pos": [332, 180],
+      "size": [132, 72],
+      "sources": [
+        {"path": "offensive/engagement.py", "label": "Capability catalogue"},
+        {"path": "offensive/bola.py", "label": "Origin validation"}
+      ]
+    },
+    {
+      "id": "executor",
+      "type": "backend",
+      "label": "Bounded experiment",
+      "sublabel": "Replay or HTTP differential",
+      "pos": [488, 180],
+      "size": [132, 72],
+      "sources": [
+        {"path": "offensive/replay.py", "label": "Replay executor"},
+        {"path": "offensive/state_change.py", "label": "Reversible mutation"},
+        {"path": "offensive/file_ingress.py", "label": "Synthetic ingress"}
+      ]
+    },
+    {
+      "id": "sealedCore",
+      "type": "backend",
+      "label": "Deterministic core",
+      "sublabel": "Exact decision before models",
+      "tag": "stdlib + exact arithmetic",
+      "pos": [644, 180],
+      "size": [132, 72],
+      "sources": [
+        {"path": "core/decision_layer.py", "label": "Decision layer"},
+        {"path": "core/canonicalize.py", "label": "Canonical encoding"},
+        {"path": "core/verdict_stream.py", "label": "Verdict chain"}
+      ]
+    },
+    {
+      "id": "receipt",
+      "type": "database",
+      "label": "Evidence + receipt",
+      "sublabel": "Result + provenance + integrity",
+      "pos": [800, 180],
+      "size": [132, 72],
+      "sources": [
+        {"path": "offensive/oracle.py", "label": "Deterministic oracle"},
+        {"path": "core/chain_of_custody.py", "label": "Custody chain"}
+      ]
+    },
+    {
+      "id": "blueEvidence",
+      "type": "external",
+      "label": "Blue evidence",
+      "sublabel": "Telemetry + behavior alert",
+      "pos": [488, 40],
+      "size": [132, 72]
+    },
+    {
+      "id": "purpleEvaluator",
+      "type": "backend",
+      "label": "Purple evaluator",
+      "sublabel": "Prevention != detection",
+      "pos": [644, 40],
+      "size": [132, 72],
+      "sources": [
+        {"path": "offensive/purple.py", "label": "Evaluation contracts"}
+      ]
+    },
+    {
+      "id": "kassandra",
+      "type": "security",
+      "label": "Protocol Kassandra",
+      "sublabel": "Tripwire + external verification",
+      "pos": [644, 320],
+      "size": [132, 72],
+      "sources": [
+        {"path": "agent/kassandra.py", "label": "Session integrity"}
+      ]
+    },
+    {
+      "id": "narrator",
+      "type": "external",
+      "label": "LLM narration",
+      "sublabel": "Cannot decide, score, or seal",
+      "tag": "unsealed output",
+      "pos": [800, 320],
+      "size": [132, 72],
+      "sources": [
+        {"path": "agent/model_provider.py", "label": "Provider boundary"}
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Authorized offensive execution boundary",
+      "wraps": ["manifest", "boundary", "executor"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Deterministic decision and evidence boundary",
+      "wraps": ["sealedCore", "receipt", "purpleEvaluator"]
+    }
+  ],
+  "connections": [
+    {"id": "operatorScope", "from": "operator", "to": "manifest", "label": "declares scope", "variant": "emphasis", "labelDy": 60},
+    {"id": "manifestGate", "from": "manifest", "to": "boundary", "label": "strict validation", "variant": "security", "labelDy": 60},
+    {"id": "boundaryRun", "from": "boundary", "to": "executor", "label": "authorizes one capability", "variant": "security", "labelDy": -30},
+    {"id": "executorEvidence", "from": "executor", "to": "sealedCore", "label": "bounded observations", "variant": "emphasis", "labelDy": 60},
+    {"id": "coreReceipt", "from": "sealedCore", "to": "receipt", "label": "decides + seals", "variant": "emphasis", "labelAt": [740, 166]},
+    {"id": "blueEvaluation", "from": "blueEvidence", "to": "purpleEvaluator", "label": "operator-supplied observation", "labelDy": 60},
+    {"id": "purpleReceipt", "from": "purpleEvaluator", "to": "receipt", "label": "adds unsealed detection evaluation", "variant": "dashed"},
+    {"id": "receiptKassandra", "from": "receipt", "to": "kassandra", "label": "sealed facts for narration", "variant": "security"},
+    {"id": "kassandraNarrator", "from": "kassandra", "to": "narrator", "label": "integrity-checked context", "variant": "dashed", "labelDy": 53}
+  ]
+}
