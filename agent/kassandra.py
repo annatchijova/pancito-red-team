@@ -411,4 +411,13 @@ class KassandraSession:
             if not isinstance(stored, str) or not hmac.compare_digest(stored, expected):
                 return False
             previous = stored
-        return True
+        with self._audit_lock:
+            if len(entries) != len(self._audit):
+                return False
+            if not self._audit:
+                return hmac.compare_digest(previous, _GENESIS_HMAC)
+            expected_head = self._audit[-1].get("hmac")
+            return (
+                isinstance(expected_head, str)
+                and hmac.compare_digest(previous, expected_head)
+            )

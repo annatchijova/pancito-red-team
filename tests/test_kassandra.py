@@ -124,6 +124,16 @@ def test_audit_hmac_chain_detects_mutation_and_reordering():
     assert session.verify_audit_chain(malformed) is False
 
 
+def test_audit_hmac_chain_rejects_a_truncated_suffix():
+    session = _session()
+    envelope = session.wrap_evidence("one", source="first")
+    session.verify_model_response("normal narration", envelope)
+    entries = session.audit_entries()
+
+    assert session.verify_audit_chain(entries[:-1]) is False
+    assert session.verify_audit_chain([]) is False
+
+
 def test_concurrent_evidence_blocks_receive_unique_ordered_heartbeats():
     session = _session()
     with ThreadPoolExecutor(max_workers=8) as pool:

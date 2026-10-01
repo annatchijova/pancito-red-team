@@ -8,6 +8,7 @@ audit start
 **Fourth-round base:** `main` at `971ce05`
 **Fifth-round base:** `main` at `ef228b6`
 **Sixth-round base:** `main` at `027a052`
+**Seventh-round base:** `main` at `cd6f016`
 **Method:** adversarial code review, authorization-surface mapping, invariant
 hunting, falsifiable local tests, and provenance-preserving reporting
 **Target boundary:** repository code and local test doubles only. No external
@@ -15,12 +16,13 @@ target, production service, credential, or third-party repository was probed.
 
 ## Executive result
 
-Eight findings have now been tracked across six audit rounds.
+Nine findings have now been tracked across seven audit rounds.
 The first four are remediated in commit `a3b1c4f`; RT-2026-05 is remediated in
-`971ce05`, RT-2026-06 in `ef228b6`, RT-2026-07 in `027a052`, and RT-2026-08
-in the current working tree. The async-export experiment is committed but only
-exercises controlled loopback labs; it is not evidence about a real API. The
-SIFT result remains bounded to synthetic producer-shaped facts.
+`971ce05`, RT-2026-06 in `ef228b6`, RT-2026-07 in `027a052`, RT-2026-08 in
+`cd6f016`, and RT-2026-09 in the current working tree. The async-export
+experiment is committed but only exercises controlled loopback labs; it is not
+evidence about a real API. The SIFT result remains bounded to synthetic
+producer-shaped facts.
 
 | ID | Priority | Finding | Evidence at discovery | Current status |
 |---|---|---|---|---|
@@ -31,7 +33,8 @@ SIFT result remains bounded to synthetic producer-shaped facts.
 | RT-2026-05 | P2 | The shared OpenAPI handoff matcher accepted an encoded route separator inside a placeholder: `/api/v1/users/%2e%2e%2fadmin` matched `/api/v1/users/{user_id}`. A downstream parser that decodes and normalizes the path can resolve it as `/api/v1/admin`, outside the selected candidate route. | Confirmed by local induction on `a3b1c4f`: `AuthnPlan` accepted the handoff/path pair and the matcher returned true; independent `unquote` + `normpath` produced `/api/v1/admin`. Runtime: Python 3.12.3. No live framework or real target was used, so downstream route remapping remains deployment-dependent. | Remediated in `971ce05` at the shared matcher by rejecting percent-encoded, backslash, control, empty, and dot-segment paths, and by bounding the concrete path to 2,048 characters before parsing/splitting. Regression covers Authn plan validation, all four handoff matchers, and max/max+1. |
 | RT-2026-06 | P2 | A fresh `ReplayCampaign` object reset its in-memory run counter and reused `run-0001` for the same grant/output namespace. It rewrote the prior window artifact, then failed later when the stale verdict stream rejected the duplicate sequence. | Local replay induction with the bundled fixture and memory backend: first campaign succeeded; a second campaign with the same authorization ID and output root reached `append_entry` and raised `StreamError`. No external target or persistent case store was used. | Remediated in `ef228b6` by atomically creating each run directory with `exist_ok=False`, refusing collisions before creating `PurpleTeamSession`. Regression confirms the second session is never constructed. This does not establish a durable/global `max_runs` quota across processes or distinct output roots. |
 | RT-2026-07 | P3 | The documented `load_engagement` file boundary followed a final symlink and could block indefinitely on a FIFO: it statted the path, then used `Path.read_bytes()`, which blocks opening a FIFO before the post-read size check. The shared bounded reader had the same FIFO-open ordering. | Red-first local regressions: a symlink to a valid manifest was accepted; a subprocess calling `load_engagement` on a FIFO timed out after 3 seconds. No service/remote interface was involved. | Remediated in `027a052` by routing manifests through the shared regular-file reader, preserving the final path component so no-follow validation applies, and opening with `O_NONBLOCK` before `fstat`. Tests require symlink and FIFO rejection; FIFO test runs in a bounded subprocess. |
-| RT-2026-08 | P2 | `authorization_id` / `engagement_id` accepted the exact path segments `.` and `..`. The executor joins the authorization ID into its output path, so `..` can place a replay run directory outside the configured output root. | Red-first tests confirmed both the direct grant and manifest parser accepted both values. Path composition in `ReplayCampaign.run` yields `out_dir/../run-0001`; no directory or file was created during induction. | Remediated in the current patch by rejecting `.` and `..` in both grant construction and manifest parsing before path composition. Regression covers both entry points. |
+| RT-2026-08 | P2 | `authorization_id` / `engagement_id` accepted the exact path segments `.` and `..`. The executor joins the authorization ID into its output path, so `..` can place a replay run directory outside the configured output root. | Red-first tests confirmed both the direct grant and manifest parser accepted both values. Path composition in `ReplayCampaign.run` yields `out_dir/../run-0001`; no directory or file was created during induction. | Remediated in `cd6f016` by rejecting `.` and `..` in both grant construction and manifest parsing before path composition. Regression covers both entry points. |
+| RT-2026-09 | P2 | Kassandra's audit-chain verifier accepted any valid prefix, including an empty chain, as complete. A caller could remove the suffix and still receive `True`, despite the chain being intended to expose log alteration/reordering. | Red-first test on `cd6f016`: after a normal response, `verify_audit_chain(entries[:-1])` returned `True`. This is a same-process session check; no persistent or external log store was involved. | Remediated in the current patch by requiring both the exact live-session entry count and its independently held head HMAC to match. Regression rejects suffix truncation and empty input. This does not provide a durable external anchor across process loss. |
 
 Priority labels are ordinal triage within this audit, not CVSS scores. P1
 reflects the possibility of tests using persistent operator data; P2 findings
@@ -48,7 +51,8 @@ cross-process quota enforcement remains outside the current in-memory grant
 model. RT-2026-07 is a local artifact availability/integrity boundary; it does
 not imply remote reachability. RT-2026-08 is a constrained local output-path
 escape through an accepted dot-segment identifier; no arbitrary path write was
-established.
+established. RT-2026-09 concerns completeness relative to the live Kassandra
+session; persistent anchoring across restarts remains unimplemented.
 
 ## Threat model and trust boundaries
 
@@ -133,6 +137,10 @@ For RT-2026-08, red-first constructor and manifest tests showed that both
 `..` to cancel the authorization directory component. The finding was
 reproduced from path composition only; no directory or file was created during
 this induction.
+
+For RT-2026-09, the red-first verifier test showed that a valid prefix of the
+session audit passed. The verifier now compares both supplied count and final
+HMAC with the live session's retained audit state; focused Kassandra tests pass.
 
 ## Falsified vectors and untested surface
 
