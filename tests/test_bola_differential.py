@@ -15,6 +15,7 @@ from offensive.bola import (
     run_bola_experiment,
 )
 from offensive.handoff import BolaCandidateHandoff
+from offensive.bola_cli import main as bola_cli_main
 
 
 OWNER_TOKEN = "owner-token-for-test"
@@ -222,3 +223,48 @@ def test_execution_receipt_keeps_candidate_provenance_at_candidate_level(bola_la
 
     assert result["candidate_provenance"] == handoff.to_receipt()
     assert result["candidate_provenance"]["epistemic_level"] == "CANDIDATE"
+
+
+def test_cli_manifest_executes_end_to_end_without_printing_secrets(
+    bola_lab, tmp_path, capsys
+):
+    origin, handler = bola_lab
+    handler.vulnerable = True
+    manifest = {
+        "schema_version": 1,
+        "experiment_id": "BOLA-CLI-LIVE-001",
+        "authorization_reference": "written-lab-scope-004",
+        "authorized_by": "Lab Owner",
+        "operator_acknowledged": True,
+        "target_origin": origin,
+        "owner_path": "/objects/a",
+        "peer_control_path": "/objects/b",
+        "owner_principal_id": "principal-a",
+        "peer_principal_id": "principal-b",
+        "owner_token_env": "PANCITO_OWNER_TOKEN",
+        "peer_token_env": "PANCITO_PEER_TOKEN",
+        "owner_canary_env": "PANCITO_OWNER_CANARY",
+        "peer_canary_env": "PANCITO_PEER_CANARY",
+        "timeout_ms": 2000,
+        "max_response_bytes": 16384,
+    }
+    path = tmp_path / "bola.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    environment = {
+        "PANCITO_OWNER_TOKEN": OWNER_TOKEN,
+        "PANCITO_PEER_TOKEN": PEER_TOKEN,
+        "PANCITO_OWNER_CANARY": OWNER_CANARY,
+        "PANCITO_PEER_CANARY": PEER_CANARY,
+    }
+
+    exit_code = bola_cli_main([str(path)], environ=environment)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert result["epistemic_level"] == "CONFIRMED_BY_INDUCTION"
+    assert OWNER_TOKEN not in captured.out
+    assert PEER_TOKEN not in captured.out
+    assert OWNER_CANARY not in captured.out
+    assert PEER_CANARY not in captured.out
