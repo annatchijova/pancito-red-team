@@ -19,6 +19,32 @@ _AUTHN_STEPS = (
     "ANONYMOUS_TEST",
     "INVALID_BEARER_TEST",
 )
+_STATE_CHANGE_STEPS = (
+    "BASELINE_READ",
+    "VALID_CREDENTIAL_CONTROL",
+    "VALID_CONTROL_READBACK",
+    "CONTROL_RESTORE",
+    "CONTROL_RESTORE_VERIFY",
+    "ANONYMOUS_TEST",
+    "ANONYMOUS_READBACK",
+    "INVALID_BEARER_TEST",
+    "INVALID_BEARER_READBACK",
+)
+_STATE_CHANGE_ALL_STEPS = (
+    "BASELINE_READ",
+    "VALID_CREDENTIAL_CONTROL",
+    "VALID_CONTROL_READBACK",
+    "CONTROL_RESTORE",
+    "CONTROL_RESTORE_VERIFY",
+    "ANONYMOUS_TEST",
+    "ANONYMOUS_READBACK",
+    "ANONYMOUS_RESTORE",
+    "ANONYMOUS_RESTORE_VERIFY",
+    "INVALID_BEARER_TEST",
+    "INVALID_BEARER_READBACK",
+    "INVALID_BEARER_RESTORE",
+    "INVALID_BEARER_RESTORE_VERIFY",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -28,6 +54,11 @@ _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
     "decision is anonymous or invalid. Required data: route, authentication outcome, "
     "principal if any, authorization decision, and status."
+)
+_STATE_CHANGE_DETECTION_REQUIREMENT = (
+    "Alert on a successful state mutation by an anonymous or invalid identity. "
+    "Required data: authentication outcome, principal if any, route, method, "
+    "authorization decision, changed field, response status, and read-back audit."
 )
 
 
@@ -97,6 +128,45 @@ def authn_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "VALID_CREDENTIAL_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _AUTHN_DETECTION_REQUIREMENT,
+    }
+
+
+def state_change_blue_objective(
+    experiment_id: str, executed_steps: tuple[str, ...] | None = None
+) -> dict[str, object]:
+    """Declare telemetry needed to distinguish mutation from an HTTP response."""
+    steps = _STATE_CHANGE_STEPS if executed_steps is None else executed_steps
+    if not isinstance(steps, tuple) or not steps:
+        raise BlueObservationError("state-change executed_steps must be a non-empty tuple")
+    if len(set(steps)) != len(steps) or any(
+        step not in _STATE_CHANGE_ALL_STEPS for step in steps
+    ):
+        raise BlueObservationError("state-change executed_steps are invalid")
+    return {
+        "technique": "PUBLIC_STATE_CHANGE",
+        "attack_mapping": "UNMAPPED_API_WEAKNESS",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(steps),
+        "conditional_steps": [
+            "ANONYMOUS_RESTORE",
+            "ANONYMOUS_RESTORE_VERIFY",
+            "INVALID_BEARER_RESTORE",
+            "INVALID_BEARER_RESTORE_VERIFY",
+        ],
+        "expected_event_count": len(steps),
+        "maximum_event_count": 13,
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with identity outcome, route, method, and status",
+            "authorization decision log for PATCH",
+            "application audit record identifying the changed field and actor",
+        ],
+        "true_positive_steps": ["ANONYMOUS_TEST", "INVALID_BEARER_TEST"],
+        "benign_twin_step": "VALID_CREDENTIAL_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _STATE_CHANGE_DETECTION_REQUIREMENT,
     }
 
 
@@ -342,4 +412,102 @@ def evaluate_authn_detection(
         technique="AUTHENTICATION_ENFORCEMENT_BYPASS",
         declared_steps=_AUTHN_STEPS,
         detection_requirement=_AUTHN_DETECTION_REQUIREMENT,
+    )
+
+
+def _state_change_receipt_steps(receipt: dict[str, object]) -> tuple[str, ...]:
+    observations = receipt.get("observations")
+    if not isinstance(observations, list) or not observations:
+        raise BlueObservationError(
+            "state-change receipt observations must be a non-empty array"
+        )
+    raw_steps = [
+        item.get("step") if isinstance(item, dict) else None
+        for item in observations
+    ]
+    if any(not isinstance(step, str) for step in raw_steps):
+        raise BlueObservationError("state-change receipt observation step is invalid")
+    steps = tuple(raw_steps)
+    if len(steps) > len(_STATE_CHANGE_ALL_STEPS) or len(set(steps)) != len(steps):
+        raise BlueObservationError("state-change receipt steps are invalid")
+    observed = set(steps)
+    canonical = tuple(step for step in _STATE_CHANGE_ALL_STEPS if step in observed)
+    if steps != canonical or steps[0] != "BASELINE_READ":
+        raise BlueObservationError("state-change receipt step order is invalid")
+    if len(steps) > 1 and steps[:5] != _STATE_CHANGE_ALL_STEPS[:5]:
+        raise BlueObservationError("state-change receipt control sequence is incomplete")
+    if "INVALID_BEARER_TEST" in observed and not {
+        "ANONYMOUS_TEST",
+        "ANONYMOUS_READBACK",
+    }.issubset(observed):
+        raise BlueObservationError(
+            "state-change receipt skipped the anonymous differential"
+        )
+    request_count = receipt.get("request_count")
+    if isinstance(request_count, bool) or request_count != len(steps):
+        raise BlueObservationError("state-change receipt request count is inconsistent")
+    if receipt.get("maximum_request_count") != len(_STATE_CHANGE_ALL_STEPS):
+        raise BlueObservationError("state-change receipt maximum request count is invalid")
+    if receipt.get("method") != "PATCH":
+        raise BlueObservationError("state-change receipt method is invalid")
+    if receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("state-change receipt overclaims security impact")
+    level = receipt.get("epistemic_level")
+    confirmed = receipt.get("confirmed_cells")
+    outcomes = receipt.get("cell_outcomes")
+    cleanup = receipt.get("cleanup_status")
+    final_verified = receipt.get("final_state_verified")
+    if not isinstance(confirmed, list) or any(
+        cell not in {"ANONYMOUS", "INVALID_BEARER"} for cell in confirmed
+    ) or len(set(confirmed)) != len(confirmed):
+        raise BlueObservationError("state-change confirmed cells are invalid")
+    if not isinstance(outcomes, dict) or any(
+        cell not in {"ANONYMOUS", "INVALID_BEARER"}
+        or outcome not in {
+            "MUTATION_CONFIRMED",
+            "MUTATION_DENIED",
+            "INCONCLUSIVE",
+        }
+        for cell, outcome in outcomes.items()
+    ):
+        raise BlueObservationError("state-change cell outcomes are invalid")
+    if any(outcomes.get(cell) != "MUTATION_CONFIRMED" for cell in confirmed):
+        raise BlueObservationError("state-change confirmed cells are inconsistent")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not confirmed or cleanup != "RESTORED_TO_BASELINE" or final_verified is not True:
+            raise BlueObservationError("state-change confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if (
+            confirmed
+            or outcomes != {
+                "ANONYMOUS": "MUTATION_DENIED",
+                "INVALID_BEARER": "MUTATION_DENIED",
+            }
+            or cleanup != "RESTORED_TO_BASELINE"
+            or final_verified is not True
+        ):
+            raise BlueObservationError("state-change falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if cleanup == "MANUAL_ACTION_REQUIRED" and final_verified is not False:
+            raise BlueObservationError("state-change cleanup state is inconsistent")
+    else:
+        raise BlueObservationError("state-change epistemic level is invalid")
+    return steps
+
+
+def evaluate_state_change_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the exact state-change steps that executed."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("STATE_CHANGE receipt must be an object")
+    steps = _state_change_receipt_steps(receipt)
+    return _evaluate_detection(
+        receipt,
+        observation,
+        receipt_name="STATE_CHANGE",
+        capability="http-public-state-change-differential",
+        technique="PUBLIC_STATE_CHANGE",
+        declared_steps=steps,
+        detection_requirement=_STATE_CHANGE_DETECTION_REQUIREMENT,
     )

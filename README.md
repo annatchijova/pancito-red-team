@@ -5,8 +5,8 @@ control testing. It reuses VIGÍA's deterministic forensic core and adds a
 strict offensive boundary: explicit scope, a closed capability catalogue,
 bounded execution, reproducible evidence, and sealed validation receipts.
 
-The current active executors are limited to three-request BOLA and
-authentication-enforcement differential experiments against a literal
+The current active executors are limited to BOLA, authentication-enforcement,
+and reversible public-state-change differential experiments against a literal
 loopback origin. All other current offensive execution is replay-only.
 PANCITO cannot run arbitrary commands, choose a remote network target,
 generate a payload, follow redirects, or let a model supply a verdict, score,
@@ -40,6 +40,12 @@ Additional bounded capabilities are available:
 - `offensive.authn` runs one valid-credential control plus anonymous and
   invalid-bearer cells against a protected GET route. A 2xx response is not a
   finding unless the protected canary is observed.
+- `offensive.state_change` tests one top-level field through `PATCH`. It proves
+  mutation only through authenticated read-back, checks the operator-supplied
+  baseline before writing, restores after every successful negative cell, and
+  stops with `MANUAL_ACTION_REQUIRED` if restoration cannot be verified. A
+  confirmed public mutation still carries `REQUIRES_HUMAN_CONTEXT`; public may
+  be intentional, so execution alone does not establish security impact.
 - `offensive.openapi_surface` passively triages an operator-supplied OpenAPI
   JSON artifact. It produces provenance-preserving review candidates and
   explicit coverage gaps; it never contacts a target or promotes a candidate
@@ -82,9 +88,11 @@ example engagement is intentionally limited to the bundled replay lab.
 The strict command-line boundaries are available as modules:
 
 ```bash
-# Passive OpenAPI triage; select a BOLA or Authn handoff when required.
+# Passive OpenAPI triage; select a bounded active handoff when required.
 python3 -m offensive.openapi_cli api.openapi.json triage-plan.json
 python3 -m offensive.openapi_cli --select-authn CANDIDATE-ID \
+  api.openapi.json triage-plan.json
+python3 -m offensive.openapi_cli --select-state-change CANDIDATE-ID \
   api.openapi.json triage-plan.json
 
 # Validate a BOLA manifest and its environment-backed secrets without requests.
@@ -97,13 +105,18 @@ python3 -m offensive.bola_cli bola-plan.json
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json
 
+# Validate or run the reversible public-state-change differential.
+python3 -m offensive.state_change_cli --dry-run state-change-plan.json
+python3 -m offensive.state_change_cli state-change-plan.json
+
 # Evaluate Blue visibility/detection without changing the Red result.
 python3 -m offensive.purple_cli bola red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
 ```
 
-BOLA manifests name environment variables that contain both credentials and
-canaries; secrets are never accepted inline in the manifest or emitted in the
+Active manifests name environment variables that contain credentials and
+canaries; secrets are never accepted inline in the manifest or emitted in a
 receipt.
 
 ### Optional OpenAI narration and agent provider
@@ -149,7 +162,7 @@ export VIGIA_ENFORCE_KASSANDRA_SALT=true
 
 | Path | Purpose |
 |---|---|
-| `offensive/` | Engagement validation, replay, OpenAPI triage/handoff, loopback BOLA/Authn proofs, and deterministic Purple evaluation |
+| `offensive/` | Engagement validation, replay, OpenAPI triage/handoff, bounded loopback proofs, and deterministic Purple evaluation |
 | `examples/` | Bounded example engagement manifests |
 | `agent/tools.py` | Session boundary used by the replay executor |
 | `core/`, `pipeline/`, `tools/`, `verdict/` | Deterministic inherited decision and sealing closure |

@@ -50,6 +50,6 @@ records whether execution succeeded separately from what the evidence proved.
 - General shell, browser, payload, exploit, arbitrary URL, and post-exploitation
   surfaces.
 - Network targets and wildcard scope matching.
-- A container sandbox. PANCITO's current executor replays committed local
-  telemetry and has no active command surface to isolate yet.
+- A container sandbox. Active HTTP experiments remain restricted to literal
+  loopback targets, fixed request shapes, bounded counts, and no redirects.
 - Model-authored authorization, evidence assessment, scores, verdicts, or hashes.

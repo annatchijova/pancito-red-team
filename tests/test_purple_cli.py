@@ -7,7 +7,11 @@ import json
 
 import pytest
 
-from offensive.purple import authn_blue_objective, bola_blue_objective
+from offensive.purple import (
+    authn_blue_objective,
+    bola_blue_objective,
+    state_change_blue_objective,
+)
 from offensive.purple_cli import (
     PurpleCliError,
     main,
@@ -21,10 +25,41 @@ def _receipt(technique: str = "bola") -> bytes:
         experiment_id = "PURPLE-CLI-BOLA-001"
         capability = "http-bola-differential"
         objective = bola_blue_objective(experiment_id)
-    else:
+        extra = {}
+    elif technique == "authn":
         experiment_id = "PURPLE-CLI-AUTHN-001"
         capability = "http-authentication-enforcement-differential"
         objective = authn_blue_objective(experiment_id)
+        extra = {}
+    else:
+        experiment_id = "PURPLE-CLI-STATE-001"
+        capability = "http-public-state-change-differential"
+        steps = (
+            "BASELINE_READ",
+            "VALID_CREDENTIAL_CONTROL",
+            "VALID_CONTROL_READBACK",
+            "CONTROL_RESTORE",
+            "CONTROL_RESTORE_VERIFY",
+            "ANONYMOUS_TEST",
+            "ANONYMOUS_READBACK",
+            "INVALID_BEARER_TEST",
+            "INVALID_BEARER_READBACK",
+        )
+        objective = state_change_blue_objective(experiment_id, steps)
+        extra = {
+            "request_count": len(steps),
+            "maximum_request_count": 13,
+            "method": "PATCH",
+            "observations": [{"step": step} for step in steps],
+            "confirmed_cells": ["ANONYMOUS"],
+            "cell_outcomes": {
+                "ANONYMOUS": "MUTATION_CONFIRMED",
+                "INVALID_BEARER": "MUTATION_DENIED",
+            },
+            "cleanup_status": "RESTORED_TO_BASELINE",
+            "final_state_verified": True,
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
     return json.dumps(
         {
             "experiment_id": experiment_id,
@@ -34,17 +69,22 @@ def _receipt(technique: str = "bola") -> bytes:
             "model_used": False,
             "part_of_forensic_verdict": False,
             "receipt_integrity": "UNSEALED",
+            **extra,
         },
         sort_keys=True,
     ).encode("utf-8")
 
 
 def _observation(technique: str = "bola", **overrides) -> bytes:
-    objective = (
-        bola_blue_objective("PURPLE-CLI-BOLA-001")
-        if technique == "bola"
-        else authn_blue_objective("PURPLE-CLI-AUTHN-001")
-    )
+    if technique == "bola":
+        objective = bola_blue_objective("PURPLE-CLI-BOLA-001")
+    elif technique == "authn":
+        objective = authn_blue_objective("PURPLE-CLI-AUTHN-001")
+    else:
+        objective = state_change_blue_objective(
+            "PURPLE-CLI-STATE-001",
+            tuple(item["step"] for item in json.loads(_receipt(technique))["observations"]),
+        )
     value = {
         "schema_version": 1,
         "exercise_marker": objective["exercise_marker"],
@@ -90,7 +130,7 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         parse_blue_observation(oversized_integer)
 
 
-@pytest.mark.parametrize("technique", ["bola", "authn"])
+@pytest.mark.parametrize("technique", ["bola", "authn", "state-change"])
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
     technique, tmp_path, capsys
 ):

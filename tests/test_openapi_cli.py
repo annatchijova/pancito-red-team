@@ -19,6 +19,9 @@ CANDIDATE_ID = "CANDIDATE-901da4b8d7484700"
 AUTHN_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
     b"AUTHENTICATION_ENFORCEMENT_REVIEW\x00GET /objects/{id}"
 ).hexdigest()[:16]
+STATE_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
+    b"PUBLIC_STATE_CHANGE_REVIEW\x00PATCH /settings/{tenant_id}"
+).hexdigest()[:16]
 
 
 def _spec() -> bytes:
@@ -127,6 +130,59 @@ def test_cli_select_authn_emits_only_loss_resistant_authn_handoff(tmp_path, caps
         "json_pointer": "/paths/~1objects~1{id}/get",
         "source_label": "api/openapi.json@ghi789",
         "source_sha256": hashlib.sha256(_spec()).hexdigest(),
+    }
+
+
+def test_cli_select_state_change_emits_only_public_patch_handoff(tmp_path, capsys):
+    spec_document = {
+        "openapi": "3.1.0",
+        "info": {"title": "State API", "version": "1"},
+        "security": [{"bearerAuth": []}],
+        "paths": {
+            "/settings/{tenant_id}": {
+                "patch": {
+                    "security": [],
+                    "parameters": [
+                        {"name": "tenant_id", "in": "path", "required": True}
+                    ],
+                    "responses": {"200": {"description": "updated"}},
+                }
+            }
+        },
+    }
+    raw_spec = json.dumps(spec_document, sort_keys=True).encode("utf-8")
+    spec = tmp_path / "state.openapi.json"
+    manifest = tmp_path / "state.triage.json"
+    spec.write_bytes(raw_spec)
+    manifest.write_bytes(
+        _manifest(
+            asset_annotations=[{
+                "entry_point": "PATCH /settings/{tenant_id}",
+                "value": 3,
+                "basis": "Tenant security settings",
+            }]
+        )
+    )
+
+    exit_code = main([
+        "--select-state-change",
+        STATE_CANDIDATE_ID,
+        str(spec),
+        str(manifest),
+    ])
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert result == {
+        "candidate_id": STATE_CANDIDATE_ID,
+        "entry_point": "PATCH /settings/{tenant_id}",
+        "epistemic_level": "CANDIDATE",
+        "integrity": "UNSEALED_TRIAGE_HANDOFF",
+        "json_pointer": "/paths/~1settings~1{tenant_id}/patch",
+        "source_label": "api/openapi.json@ghi789",
+        "source_sha256": hashlib.sha256(raw_spec).hexdigest(),
     }
 
 
