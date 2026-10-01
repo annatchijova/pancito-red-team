@@ -5,6 +5,7 @@
 audit start
 **Second-round base:** `main` at `2b7d16c`
 **Third-round base:** `main` at `a3b1c4f`
+**Fourth-round base:** `main` at `971ce05`
 **Method:** adversarial code review, authorization-surface mapping, invariant
 hunting, falsifiable local tests, and provenance-preserving reporting
 **Target boundary:** repository code and local test doubles only. No external
@@ -12,11 +13,12 @@ target, production service, credential, or third-party repository was probed.
 
 ## Executive result
 
-Five findings have now been tracked across three audit rounds.
-The first four are remediated in commit `a3b1c4f`; the fifth is remediated in
-the current working tree. The async-export experiment is committed but only
-exercises controlled loopback labs; it is not evidence about a real API. The
-SIFT result remains bounded to synthetic producer-shaped facts.
+Six findings have now been tracked across four audit rounds.
+The first four are remediated in commit `a3b1c4f`; RT-2026-05 is remediated in
+`971ce05` and RT-2026-06 is remediated in the current working tree. The
+async-export experiment is committed but only exercises controlled loopback
+labs; it is not evidence about a real API. The SIFT result remains bounded to
+synthetic producer-shaped facts.
 
 | ID | Priority | Finding | Evidence at discovery | Current status |
 |---|---|---|---|---|
@@ -24,7 +26,8 @@ SIFT result remains bounded to synthetic producer-shaped facts.
 | RT-2026-02 | P2 | Async-export work populated `_Event` fields positionally after adding canary fields; response hashes landed in the wrong fields and `response_capture_sha256` remained empty. The declared `other_tenant_canary_observed` field was never computed, and Purple validation still expected the old event shape. | Targeted loopback test failed because response digests were not 64 hex characters. Code-path review found the canary field defaulting to `None`; receipt validation did not yet require field/event consistency. | Remediated in `2b7d16c` using keyword fields, computing both canary observations, validating event-specific shape, and updating fixtures. Targeted and full tests pass. |
 | RT-2026-03 | P2 | SIFT Memory/MFT producer summaries lost shared correlation identity, so the timeline missed a cross-source causal inversion despite both positive controls working. | Historical induction in [`timeline-composition-audit.md`](timeline-composition-audit.md), base `209db4d`; production-shaped synthetic pair yielded `MEMORY_WITHOUT_DISK` instead of `CAUSAL_INVERSION`. | Remediated in `2b7d16c` for the unique-basename case; ambiguity deliberately remains uncorrelated. Regression test detects the synthetic causal inversion. No real-image or sealed-verdict impact was established. |
 | RT-2026-04 | P2 | Six authorization clients accepted explicit port `0` as if no port were supplied (`port or 80`) and then connected to port 80. A manifest could therefore escape its declared loopback endpoint, potentially sending Bearer credentials to a different local service. | Pure-code induction: `_origin("http://127.0.0.1:0")` returned a parsed origin whose port was `0`, while the client's fallback expression selected `80`. The pattern existed in async export, scope, search, collection, export, and function authorization. No socket was opened and credential delivery to a listener was not tested. | Remediated in `a3b1c4f` by distinguishing `None` from explicit zero in validation and connection setup across six affected clients. Regression cases require port 0 rejection. Targeted and full suites pass. |
-| RT-2026-05 | P2 | The shared OpenAPI handoff matcher accepted an encoded route separator inside a placeholder: `/api/v1/users/%2e%2e%2fadmin` matched `/api/v1/users/{user_id}`. A downstream parser that decodes and normalizes the path can resolve it as `/api/v1/admin`, outside the selected candidate route. | Confirmed by local induction on `a3b1c4f`: `AuthnPlan` accepted the handoff/path pair and the matcher returned true; independent `unquote` + `normpath` produced `/api/v1/admin`. Runtime: Python 3.12.3. No live framework or real target was used, so downstream route remapping remains deployment-dependent. | Remediated in the current patch at the shared matcher by rejecting percent-encoded, backslash, control, empty, and dot-segment paths, and by bounding the concrete path to 2,048 characters before parsing/splitting. Regression covers Authn plan validation, all four handoff matchers, and max/max+1. |
+| RT-2026-05 | P2 | The shared OpenAPI handoff matcher accepted an encoded route separator inside a placeholder: `/api/v1/users/%2e%2e%2fadmin` matched `/api/v1/users/{user_id}`. A downstream parser that decodes and normalizes the path can resolve it as `/api/v1/admin`, outside the selected candidate route. | Confirmed by local induction on `a3b1c4f`: `AuthnPlan` accepted the handoff/path pair and the matcher returned true; independent `unquote` + `normpath` produced `/api/v1/admin`. Runtime: Python 3.12.3. No live framework or real target was used, so downstream route remapping remains deployment-dependent. | Remediated in `971ce05` at the shared matcher by rejecting percent-encoded, backslash, control, empty, and dot-segment paths, and by bounding the concrete path to 2,048 characters before parsing/splitting. Regression covers Authn plan validation, all four handoff matchers, and max/max+1. |
+| RT-2026-06 | P2 | A fresh `ReplayCampaign` object reset its in-memory run counter and reused `run-0001` for the same grant/output namespace. It rewrote the prior window artifact, then failed later when the stale verdict stream rejected the duplicate sequence. | Local replay induction with the bundled fixture and memory backend: first campaign succeeded; a second campaign with the same authorization ID and output root reached `append_entry` and raised `StreamError`. No external target or persistent case store was used. | Remediated in the current patch by atomically creating each run directory with `exist_ok=False`, refusing collisions before creating `PurpleTeamSession`. Regression confirms the second session is never constructed. This does not establish a durable/global `max_runs` quota across processes or distinct output roots. |
 
 Priority labels are ordinal triage within this audit, not CVSS scores. P1
 reflects the possibility of tests using persistent operator data; P2 findings
@@ -33,7 +36,10 @@ experiment's receipt contract. For RT-2026-04, parser-to-client remapping is
 confirmed; actual credential receipt by a local service was not tested. No P0
 emergency was identified in the reviewed scope. RT-2026-05 confirms an
 accepted ambiguous route at the handoff boundary; actual framework routing and
-credential delivery remain untested.
+credential delivery remain untested. RT-2026-06 concerns a local replay-output
+namespace collision, not authorization against a remote target; persistent
+cross-process quota enforcement remains outside the current in-memory grant
+model.
 
 ## Threat model and trust boundaries
 
@@ -99,6 +105,13 @@ feature warning remained. Targeted verification also passed:
 ```bash
 python3 -m pytest tests/test_timeline_evasion.py tests/test_timeline_evasion_cli.py tests/test_async_export_authz.py tests/test_async_export_authz_cli.py tests/test_purple_cli.py tests/test_autonomous_service.py tests/test_scope_authz_differential.py tests/test_search_authz_differential.py tests/test_collection_authz_differential.py tests/test_export_authz_differential.py tests/test_function_authz_differential.py -q -p no:cacheprovider
 ```
+
+For RT-2026-06, the red-first regression on `971ce05` reproduced the stale
+stream failure on a second campaign using the same grant and output root. After
+remediation, the focused replay suite passes; the new assertion replaces the
+session constructor and proves the collision is refused before the second
+replay begins. Each run-directory reservation is exclusive; failed attempts
+continue to consume the campaign object's in-memory run slot by design.
 
 ## Falsified vectors and untested surface
 

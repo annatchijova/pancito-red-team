@@ -51,6 +51,29 @@ def test_campaign_has_a_hard_run_budget(tmp_path):
         campaign.run("process-hollowing-timestomp")
 
 
+def test_reused_output_namespace_is_refused_before_second_replay(
+    tmp_path, monkeypatch
+):
+    grant = _grant()
+    ReplayCampaign(grant, out_dir=tmp_path).run(
+        "process-hollowing-timestomp"
+    )
+    session_created = False
+
+    def unexpected_session(*args, **kwargs):
+        nonlocal session_created
+        session_created = True
+        raise AssertionError("replay session must not start for a reused path")
+
+    monkeypatch.setattr("offensive.replay.PurpleTeamSession", unexpected_session)
+
+    with pytest.raises(AuthorizationError, match="run output directory"):
+        ReplayCampaign(grant, out_dir=tmp_path).run(
+            "process-hollowing-timestomp"
+        )
+    assert session_created is False
+
+
 def test_concurrent_callers_cannot_spend_one_run_twice(tmp_path):
     campaign = ReplayCampaign(_grant(), out_dir=tmp_path)
     with ThreadPoolExecutor(max_workers=2) as pool:

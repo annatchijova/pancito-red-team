@@ -137,6 +137,15 @@ class ReplayCampaign:
             self._runs += 1
             run_number = self._runs
         run_dir = self.out_dir / self.grant.authorization_id / f"run-{run_number:04d}"
+        try:
+            # A new campaign object starts its in-memory counter at zero.  An
+            # existing run namespace must therefore fail before the session
+            # can overwrite any evidence/window artifacts from an earlier run.
+            run_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError as exc:
+            raise AuthorizationError(
+                "run output directory already exists; refusing namespace reuse"
+            ) from exc
         fixture = _FIXTURES_ROOT / spec["fixture"]
         session = PurpleTeamSession(
             MockTransport(fixture),
