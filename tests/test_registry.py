@@ -17,7 +17,7 @@ def _session():
     from agent.tools import PurpleTeamSession
     from tools.velociraptor.adapter import MockTransport
     return PurpleTeamSession(
-        MockTransport(REPO / "tests" / "fixtures" / "attack"), case_id="R",
+        MockTransport(REPO / "offensive" / "fixtures" / "attack"), case_id="R",
         host={"client_id": "C.1", "hostname": "H", "os": "windows"},
         examiner_id="op", out_dir=tempfile.mkdtemp(), source="replay",
         time_base="2026-08-12T14:10:00Z")

@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 def _session():
     return PurpleTeamSession(
-        MockTransport(REPO / "tests" / "fixtures" / "attack"), case_id="SCHEMA",
+        MockTransport(REPO / "offensive" / "fixtures" / "attack"), case_id="SCHEMA",
         host={"client_id": "C.1", "hostname": "H", "os": "windows"},
         examiner_id="op", out_dir=tempfile.mkdtemp(), source="replay",
         time_base="2026-08-12T14:10:00Z")

@@ -18,12 +18,14 @@ from core.verdict_stream import verify_stream
 from tools.velociraptor.adapter import MockTransport
 
 FIXTURES = Path(__file__).parent / "fixtures"
+ATTACK_FIXTURES = Path(__file__).parent.parent / "offensive" / "fixtures" / "attack"
 
 
 def _session(case_id="CASE-VICTIM-A", hostname="WIN11-VICTIM-A",
              client_id="C.aaa", scenario="attack"):
+    fixture_dir = ATTACK_FIXTURES if scenario == "attack" else FIXTURES / scenario
     return PurpleTeamSession(
-        MockTransport(FIXTURES / scenario), case_id=case_id,
+        MockTransport(fixture_dir), case_id=case_id,
         host={"client_id": client_id, "hostname": hostname, "os": "windows"},
         examiner_id="perito-01", out_dir=Path(mkdtemp()), source="replay",
         time_base="2026-08-12T14:10:00Z")

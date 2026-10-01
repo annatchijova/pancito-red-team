@@ -17,7 +17,7 @@ from tools.velociraptor.adapter import (  # noqa: E402
     MockTransport, collect_window, window_to_case)
 from vigia_scorer import _vigia_score  # noqa: E402
 
-FIXTURES = REPO_ROOT / "tests" / "fixtures" / "attack"
+FIXTURES = REPO_ROOT / "offensive" / "fixtures" / "attack"
 
 
 def main() -> None:

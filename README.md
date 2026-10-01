@@ -115,7 +115,7 @@ export VIGIA_ENFORCE_KASSANDRA_SALT=true
 | `examples/` | Bounded example engagement manifests |
 | `agent/tools.py` | Session boundary used by the replay executor |
 | `core/`, `pipeline/`, `tools/`, `verdict/` | Deterministic inherited decision and sealing closure |
-| `tests/fixtures/attack/` | Committed hostile telemetry used by replay scenarios |
+| `offensive/fixtures/attack/` | Packaged hostile telemetry used by replay scenarios |
 | `service/` and the rest of `agent/` | Connected inherited backend; retained pending product-boundary work |
 | `UPSTREAM_RESEARCH.md` | Reviewed offensive-agent patterns and provenance |
 | `CLEANUP_REPORT.html` | Cleanup evidence, classifications, deletions, and deferred findings |
@@ -136,8 +136,8 @@ python3 scripts_lib/validate_live_velociraptor.py
 - `offensive.replay` currently reaches the inherited scoring pipeline through
   `agent.tools` and `vigia_scorer`; those modules are load-bearing and were not
   deleted during the cleanup.
-- The Python package metadata and the inherited Cloud service describe two
-  different product surfaces. Packaging and deployment need a dedicated
+- The Python package and the inherited Cloud service describe two different
+  product surfaces. Deployment still needs a dedicated
   boundary decision before either is called production-ready.
 - `service.app` is fixture-backed replay, not a live offensive transport.
 

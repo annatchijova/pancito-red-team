@@ -25,7 +25,7 @@ from core.verdict_stream import _sha256_canonical as producer_sha256
 import tools.verify_bundle as V
 
 REPO = Path(__file__).resolve().parent.parent
-ATTACK = REPO / "tests" / "fixtures" / "attack"
+ATTACK = REPO / "offensive" / "fixtures" / "attack"
 HOST = {"client_id": "C.1", "hostname": "WIN11-VICTIM", "os": "windows"}
 
 

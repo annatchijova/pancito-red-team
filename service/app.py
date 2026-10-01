@@ -67,7 +67,7 @@ REPLAY_EVIDENCE = Path(
 # score. Benign is the default; the attack scenario is opt-in.
 ATTACK_EVIDENCE = Path(
     os.environ.get("VIGIA_ATTACK_EVIDENCE",
-                   str(REPO_ROOT / "tests" / "fixtures" / "attack")))
+                   str(REPO_ROOT / "offensive" / "fixtures" / "attack")))
 
 app = FastAPI(
     title="PANCITO-RED-TEAM — Offensive Validation for Blue Teams",

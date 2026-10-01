@@ -169,7 +169,7 @@ def test_the_chain_spans_segments_and_still_verifies(store):
 
     repo = Path(__file__).resolve().parent.parent
     session = PurpleTeamSession(
-        MockTransport(repo / "tests" / "fixtures" / "attack"), case_id="VERIFY",
+        MockTransport(repo / "offensive" / "fixtures" / "attack"), case_id="VERIFY",
         host={"client_id": "C.1", "hostname": "H", "os": "windows"},
         examiner_id="op", out_dir=tempfile.mkdtemp(), source="replay",
         time_base="2026-08-12T14:10:00Z")
@@ -456,7 +456,7 @@ def _sealing_session(case, case_id="STALE"):
     repo = Path(__file__).resolve().parent.parent
     entries = case.get("entries", [])
     return PurpleTeamSession(
-        MockTransport(repo / "tests" / "fixtures" / "attack"), case_id=case_id,
+        MockTransport(repo / "offensive" / "fixtures" / "attack"), case_id=case_id,
         host={"client_id": "C.1", "hostname": "H", "os": "windows"},
         examiner_id="op", out_dir=tempfile.mkdtemp(), source="replay",
         time_base="2026-08-12T14:10:00Z",

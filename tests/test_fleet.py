@@ -13,7 +13,7 @@ from agent.tools import PurpleTeamSession
 from tools.velociraptor.adapter import MockTransport
 
 REPO = Path(__file__).resolve().parent.parent
-ATTACK = REPO / "tests" / "fixtures" / "attack"
+ATTACK = REPO / "offensive" / "fixtures" / "attack"
 HOST = {"client_id": "C.1", "hostname": "WIN11-VICTIM", "os": "windows"}
 
 
