@@ -22,6 +22,9 @@ AUTHN_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
 STATE_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
     b"PUBLIC_STATE_CHANGE_REVIEW\x00PATCH /settings/{tenant_id}"
 ).hexdigest()[:16]
+FILE_CANDIDATE_ID = "CANDIDATE-" + hashlib.sha256(
+    b"FILE_INGRESS_REVIEW\x00POST /uploads"
+).hexdigest()[:16]
 
 
 def _spec() -> bytes:
@@ -184,6 +187,33 @@ def test_cli_select_state_change_emits_only_public_patch_handoff(tmp_path, capsy
         "source_label": "api/openapi.json@ghi789",
         "source_sha256": hashlib.sha256(raw_spec).hexdigest(),
     }
+
+
+def test_cli_select_file_ingress_requires_post_candidate(tmp_path, capsys):
+    document = {
+        "openapi": "3.1.0",
+        "info": {"title": "Upload API", "version": "1"},
+        "security": [{"bearerAuth": []}],
+        "paths": {"/uploads": {"post": {
+            "requestBody": {"content": {"multipart/form-data": {}}},
+            "responses": {"201": {"description": "stored"}},
+        }}},
+    }
+    raw = json.dumps(document, sort_keys=True).encode()
+    spec = tmp_path / "upload.openapi.json"
+    plan = tmp_path / "upload.triage.json"
+    spec.write_bytes(raw)
+    plan.write_bytes(_manifest(asset_annotations=[{
+        "entry_point": "POST /uploads", "value": 3, "basis": "Uploaded evidence",
+    }]))
+
+    code = main(["--select-file-ingress", FILE_CANDIDATE_ID, str(spec), str(plan)])
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+    assert code == 0
+    assert result["entry_point"] == "POST /uploads"
+    assert result["epistemic_level"] == "CANDIDATE"
+    assert result["source_sha256"] == hashlib.sha256(raw).hexdigest()
 
 
 def test_select_rejects_unknown_candidate_without_partial_stdout(tmp_path, capsys):

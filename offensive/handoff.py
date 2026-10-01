@@ -114,6 +114,31 @@ def _state_change_template_from_entry_point(value: object) -> str:
     return template
 
 
+def _file_ingress_template_from_entry_point(value: object) -> str:
+    entry_point = _text(value, "entry_point", 2_128)
+    method, separator, template = entry_point.partition(" ")
+    if method != "POST" or not separator:
+        raise HandoffError("file-ingress candidate entry_point must use POST")
+    parsed = urlsplit(template)
+    if (
+        not template.startswith("/")
+        or template.startswith("//")
+        or "\\" in template
+        or parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise HandoffError("file-ingress candidate must use a relative path template")
+    segments = template.split("/")[1:]
+    placeholders = [segment for segment in segments if segment.startswith("{")]
+    if any(not _PLACEHOLDER_RE.fullmatch(item) for item in placeholders):
+        raise HandoffError("file-ingress candidate has an invalid path placeholder")
+    if any(("{" in item or "}" in item) and item not in placeholders for item in segments):
+        raise HandoffError("file-ingress candidate has an ambiguous path placeholder")
+    return template
+
+
 @dataclass(frozen=True)
 class BolaCandidateHandoff:
     """Unsealed provenance pointer; it preserves a candidate, not a conclusion."""
@@ -261,6 +286,54 @@ class StateChangeCandidateHandoff:
         }
 
 
+@dataclass(frozen=True)
+class FileIngressCandidateHandoff:
+    """Unsealed provenance for one passive POST file-ingress candidate."""
+
+    candidate_id: str
+    source_label: str
+    source_sha256: str
+    entry_point: str
+    json_pointer: str = "/unavailable"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.candidate_id, str) or not _CANDIDATE_ID_RE.fullmatch(
+            self.candidate_id
+        ):
+            raise HandoffError("candidate_id is invalid")
+        _text(self.source_label, "source_label", 512)
+        if not isinstance(self.source_sha256, str) or not _SHA256_RE.fullmatch(
+            self.source_sha256
+        ):
+            raise HandoffError("source_sha256 must be lowercase SHA-256")
+        _file_ingress_template_from_entry_point(self.entry_point)
+        if not _text(self.json_pointer, "json_pointer", 2_048).startswith("/"):
+            raise HandoffError("json_pointer must be an absolute JSON pointer")
+
+    @property
+    def epistemic_level(self) -> str:
+        return "CANDIDATE"
+
+    @property
+    def integrity(self) -> str:
+        return "UNSEALED_TRIAGE_HANDOFF"
+
+    @property
+    def path_template(self) -> str:
+        return _file_ingress_template_from_entry_point(self.entry_point)
+
+    def to_receipt(self) -> dict[str, str]:
+        return {
+            "candidate_id": self.candidate_id,
+            "source_label": self.source_label,
+            "source_sha256": self.source_sha256,
+            "json_pointer": self.json_pointer,
+            "entry_point": self.entry_point,
+            "epistemic_level": self.epistemic_level,
+            "integrity": self.integrity,
+        }
+
+
 def path_matches_candidate_template(
     handoff: BolaCandidateHandoff, concrete_path: str
 ) -> bool:
@@ -303,6 +376,16 @@ def state_change_path_matches_candidate_template(
 ) -> bool:
     """Bind a concrete PATCH path to its passive OpenAPI candidate."""
     if not isinstance(handoff, StateChangeCandidateHandoff) or not isinstance(
+        concrete_path, str
+    ):
+        return False
+    return _path_matches_template(handoff.path_template, concrete_path)
+
+
+def file_ingress_path_matches(
+    handoff: FileIngressCandidateHandoff, concrete_path: str
+) -> bool:
+    if not isinstance(handoff, FileIngressCandidateHandoff) or not isinstance(
         concrete_path, str
     ):
         return False
@@ -435,4 +518,25 @@ def select_state_change_candidate(
         json_pointer=_text(
             provenance.get("json_pointer"), "json_pointer", 2_048
         ),
+    )
+
+
+def select_file_ingress_candidate(
+    triage_receipt: dict[str, object], candidate_id: str
+) -> FileIngressCandidateHandoff:
+    """Select one ranked POST file-ingress candidate without promotion."""
+    candidate, provenance, source_label = _select_ranked_candidate(
+        triage_receipt,
+        candidate_id,
+        expected_type="FILE_INGRESS_REVIEW",
+        wrong_type_message="selected candidate is not a file-ingress candidate",
+    )
+    return FileIngressCandidateHandoff(
+        candidate_id=candidate_id,
+        source_label=_text(source_label, "source_label", 512),
+        source_sha256=_text(
+            triage_receipt.get("source_sha256"), "source_sha256", 64
+        ),
+        entry_point=_text(candidate.get("entry_point"), "entry_point", 2_128),
+        json_pointer=_text(provenance.get("json_pointer"), "json_pointer", 2_048),
     )

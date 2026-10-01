@@ -45,6 +45,11 @@ _STATE_CHANGE_ALL_STEPS = (
     "INVALID_BEARER_RESTORE",
     "INVALID_BEARER_RESTORE_VERIFY",
 )
+_FILE_INGRESS_ALL_STEPS = tuple(
+    f"{cell}_{suffix}"
+    for cell in ("CONTROL", "TYPE_MISMATCH", "OVERSIZE")
+    for suffix in ("UPLOAD", "READBACK", "CLEANUP", "CLEANUP_VERIFY")
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -59,6 +64,11 @@ _STATE_CHANGE_DETECTION_REQUIREMENT = (
     "Alert on a successful state mutation by an anonymous or invalid identity. "
     "Required data: authentication outcome, principal if any, route, method, "
     "authorization decision, changed field, response status, and read-back audit."
+)
+_FILE_INGRESS_DETECTION_REQUIREMENT = (
+    "Alert when stored upload bytes contradict the declared media type or exceed "
+    "the authorized size policy. Required data: principal, route, filename, declared "
+    "type, observed digest and size, validation decision, storage result, and status."
 )
 
 
@@ -167,6 +177,43 @@ def state_change_blue_objective(
         "benign_twin_step": "VALID_CREDENTIAL_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _STATE_CHANGE_DETECTION_REQUIREMENT,
+    }
+
+
+def file_ingress_blue_objective(
+    experiment_id: str, executed_steps: tuple[str, ...]
+) -> dict[str, object]:
+    """Declare Blue evidence for exactly the synthetic upload steps executed."""
+    if not isinstance(executed_steps, tuple) or not executed_steps:
+        raise BlueObservationError("file-ingress executed_steps must be non-empty")
+    if len(set(executed_steps)) != len(executed_steps) or any(
+        step not in _FILE_INGRESS_ALL_STEPS for step in executed_steps
+    ):
+        raise BlueObservationError("file-ingress executed_steps are invalid")
+    selected = set(executed_steps)
+    if executed_steps != tuple(
+        step for step in _FILE_INGRESS_ALL_STEPS if step in selected
+    ):
+        raise BlueObservationError("file-ingress executed_steps are out of order")
+    return {
+        "technique": "FILE_INGRESS_VALIDATION",
+        "attack_mapping": "UNMAPPED_API_WEAKNESS",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(executed_steps),
+        "expected_event_count": len(executed_steps),
+        "maximum_event_count": len(_FILE_INGRESS_ALL_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "upload access log with principal, filename, declared media type, and status",
+            "validation decision with observed size and type evidence",
+            "storage audit with digest plus deletion and absence verification",
+        ],
+        "true_positive_steps": ["TYPE_MISMATCH_UPLOAD", "OVERSIZE_UPLOAD"],
+        "benign_twin_step": "CONTROL_UPLOAD",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _FILE_INGRESS_DETECTION_REQUIREMENT,
     }
 
 
@@ -510,4 +557,155 @@ def evaluate_state_change_detection(
         technique="PUBLIC_STATE_CHANGE",
         declared_steps=steps,
         detection_requirement=_STATE_CHANGE_DETECTION_REQUIREMENT,
+    )
+
+
+def _file_ingress_receipt_steps(receipt: dict[str, object]) -> tuple[str, ...]:
+    observations = receipt.get("observations")
+    if not isinstance(observations, list) or not observations:
+        raise BlueObservationError("file-ingress receipt observations are invalid")
+    raw = [item.get("step") if isinstance(item, dict) else None for item in observations]
+    if any(not isinstance(step, str) for step in raw):
+        raise BlueObservationError("file-ingress observation step is invalid")
+    steps = tuple(raw)
+    if len(set(steps)) != len(steps) or len(steps) > len(_FILE_INGRESS_ALL_STEPS):
+        raise BlueObservationError("file-ingress receipt steps are invalid")
+    selected = set(steps)
+    if steps != tuple(step for step in _FILE_INGRESS_ALL_STEPS if step in selected):
+        raise BlueObservationError("file-ingress receipt step order is invalid")
+    if steps[0] != "CONTROL_UPLOAD":
+        raise BlueObservationError("file-ingress receipt skipped its control")
+    request_count = receipt.get("request_count")
+    if (
+        isinstance(request_count, bool)
+        or request_count != len(steps)
+        or receipt.get("maximum_request_count") != 12
+    ):
+        raise BlueObservationError("file-ingress request budget is inconsistent")
+    if receipt.get("method") != "POST" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("file-ingress receipt overclaims or changes method")
+    confirmed = receipt.get("confirmed_cells")
+    outcomes = receipt.get("cell_outcomes")
+    if not isinstance(confirmed, list) or any(
+        cell not in {"TYPE_MISMATCH", "OVERSIZE"} for cell in confirmed
+    ) or len(set(confirmed)) != len(confirmed):
+        raise BlueObservationError("file-ingress confirmed cells are invalid")
+    if not isinstance(outcomes, dict) or any(
+        cell not in {"CONTROL", "TYPE_MISMATCH", "OVERSIZE"}
+        or outcome not in {
+            "STORED_EXACTLY",
+            "REJECTED",
+            "CONTROL_FAILED",
+            "INCONCLUSIVE",
+        }
+        for cell, outcome in outcomes.items()
+    ):
+        raise BlueObservationError("file-ingress cell outcomes are invalid")
+    processed_cells = tuple(
+        cell
+        for cell in ("CONTROL", "TYPE_MISMATCH", "OVERSIZE")
+        if f"{cell}_UPLOAD" in selected
+    )
+    if set(outcomes) != set(processed_cells):
+        raise BlueObservationError("file-ingress cell outcomes are incomplete")
+    for cell in processed_cells:
+        cell_steps = tuple(
+            step for step in _FILE_INGRESS_ALL_STEPS if step.startswith(f"{cell}_")
+            and step in selected
+        )
+        if cell_steps not in {
+            (f"{cell}_UPLOAD",),
+            tuple(
+                f"{cell}_{suffix}"
+                for suffix in ("UPLOAD", "READBACK", "CLEANUP", "CLEANUP_VERIFY")
+            ),
+        }:
+            raise BlueObservationError(
+                "file-ingress cell lifecycle is incomplete"
+            )
+        if outcomes[cell] == "REJECTED" and cell_steps != (f"{cell}_UPLOAD",):
+            raise BlueObservationError("file-ingress rejected cell is inconsistent")
+        if outcomes[cell] == "STORED_EXACTLY" and len(cell_steps) != 4:
+            raise BlueObservationError("file-ingress stored cell is inconsistent")
+    expected_confirmed = [
+        cell
+        for cell in ("TYPE_MISMATCH", "OVERSIZE")
+        if outcomes.get(cell) == "STORED_EXACTLY"
+    ]
+    if confirmed != expected_confirmed:
+        raise BlueObservationError("file-ingress confirmed cells are inconsistent")
+    expected_max = receipt.get("expected_max_bytes")
+    if (
+        isinstance(expected_max, bool)
+        or not isinstance(expected_max, int)
+        or not 1_024 <= expected_max <= 65_536
+    ):
+        raise BlueObservationError("file-ingress size policy is invalid")
+    samples = receipt.get("samples")
+    if not isinstance(samples, dict) or set(samples) != {
+        "CONTROL", "TYPE_MISMATCH", "OVERSIZE"
+    }:
+        raise BlueObservationError("file-ingress sample manifest is invalid")
+    marker_bytes = exercise_marker(receipt.get("experiment_id")).encode("ascii")
+    expected_samples = {
+        "CONTROL": (
+            "control.txt", "text/plain", b"PANCITO-INERT-TEXT-V1\n" + marker_bytes + b"\n"
+        ),
+        "TYPE_MISMATCH": (
+            "mismatch.png", "image/png", b"PANCITO-NOT-A-PNG-V1\n" + marker_bytes + b"\n"
+        ),
+    }
+    oversize = b"PANCITO-INERT-OVERSIZE-V1\n" + marker_bytes + b"\n"
+    oversize += b"X" * (expected_max + 1 - len(oversize))
+    expected_samples["OVERSIZE"] = (
+        "oversize.bin", "application/octet-stream", oversize
+    )
+    for cell, (filename, media_type, content) in expected_samples.items():
+        fact = samples[cell]
+        if not isinstance(fact, dict) or fact != {
+            "filename": filename,
+            "declared_media_type": media_type,
+            "size": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "synthetic_inert": True,
+        }:
+            raise BlueObservationError(
+                "file-ingress sample manifest does not reproduce"
+            )
+    level = receipt.get("epistemic_level")
+    cleanup = receipt.get("cleanup_status")
+    final_absent = receipt.get("final_absence_verified")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not confirmed or cleanup != "VERIFIED_ABSENT" or final_absent is not True:
+            raise BlueObservationError("file-ingress confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if confirmed or outcomes != {
+            "CONTROL": "STORED_EXACTLY",
+            "TYPE_MISMATCH": "REJECTED",
+            "OVERSIZE": "REJECTED",
+        } or cleanup != "VERIFIED_ABSENT" or final_absent is not True:
+            raise BlueObservationError("file-ingress falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if cleanup == "MANUAL_ACTION_REQUIRED" and final_absent is not False:
+            raise BlueObservationError("file-ingress cleanup state is inconsistent")
+    else:
+        raise BlueObservationError("file-ingress epistemic level is invalid")
+    return steps
+
+
+def evaluate_file_ingress_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for exactly the synthetic upload traffic emitted."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("FILE_INGRESS receipt must be an object")
+    steps = _file_ingress_receipt_steps(receipt)
+    return _evaluate_detection(
+        receipt,
+        observation,
+        receipt_name="FILE_INGRESS",
+        capability="http-file-ingress-differential",
+        technique="FILE_INGRESS_VALIDATION",
+        declared_steps=steps,
+        detection_requirement=_FILE_INGRESS_DETECTION_REQUIREMENT,
     )

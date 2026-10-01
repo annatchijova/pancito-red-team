@@ -16,6 +16,7 @@ from offensive.purple import (
     BlueObservationError,
     evaluate_authn_detection,
     evaluate_bola_detection,
+    evaluate_file_ingress_detection,
     evaluate_state_change_detection,
 )
 
@@ -164,7 +165,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "Evaluate one bounded Red receipt against operator-supplied Blue evidence."
         ),
     )
-    parser.add_argument("technique", choices=("bola", "authn", "state-change"))
+    parser.add_argument(
+        "technique", choices=("bola", "authn", "state-change", "file-ingress")
+    )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
     parser.add_argument("blue_observation", help="Path to the Blue observation JSON")
     args = parser.parse_args(argv)
@@ -177,6 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "bola": evaluate_bola_detection,
             "authn": evaluate_authn_detection,
             "state-change": evaluate_state_change_detection,
+            "file-ingress": evaluate_file_ingress_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {

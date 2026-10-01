@@ -14,6 +14,7 @@ from offensive.handoff import (
     HandoffError,
     select_authn_candidate,
     select_bola_candidate,
+    select_file_ingress_candidate,
     select_state_change_candidate,
 )
 from offensive.local_artifact import LocalArtifactError, read_bounded_regular_file
@@ -205,6 +206,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "full receipt"
         ),
     )
+    selection.add_argument(
+        "--select-file-ingress",
+        metavar="CANDIDATE_ID",
+        help="Emit one ranked POST file-ingress candidate handoff",
+    )
     parser.add_argument("openapi", help="Path to an OpenAPI 3.x JSON document")
     parser.add_argument("manifest", help="Path to the strict triage plan JSON")
     args = parser.parse_args(argv)
@@ -222,6 +228,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.select_state_change is not None:
             result = select_state_change_candidate(
                 receipt, args.select_state_change
+            ).to_receipt()
+        elif args.select_file_ingress is not None:
+            result = select_file_ingress_candidate(
+                receipt, args.select_file_ingress
             ).to_receipt()
     except (OpenApiCliError, OpenApiTriageError, HandoffError) as exc:
         print(f"PANCITO_OPENAPI_CONFIG_ERROR: {exc}", file=sys.stderr)

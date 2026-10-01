@@ -10,6 +10,7 @@ import pytest
 from offensive.purple import (
     authn_blue_objective,
     bola_blue_objective,
+    file_ingress_blue_objective,
     state_change_blue_objective,
 )
 from offensive.purple_cli import (
@@ -31,7 +32,7 @@ def _receipt(technique: str = "bola") -> bytes:
         capability = "http-authentication-enforcement-differential"
         objective = authn_blue_objective(experiment_id)
         extra = {}
-    else:
+    elif technique == "state-change":
         experiment_id = "PURPLE-CLI-STATE-001"
         capability = "http-public-state-change-differential"
         steps = (
@@ -60,6 +61,54 @@ def _receipt(technique: str = "bola") -> bytes:
             "final_state_verified": True,
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
+    else:
+        experiment_id = "PURPLE-CLI-FILE-001"
+        capability = "http-file-ingress-differential"
+        steps = (
+            "CONTROL_UPLOAD", "CONTROL_READBACK", "CONTROL_CLEANUP",
+            "CONTROL_CLEANUP_VERIFY", "TYPE_MISMATCH_UPLOAD",
+            "TYPE_MISMATCH_READBACK", "TYPE_MISMATCH_CLEANUP",
+            "TYPE_MISMATCH_CLEANUP_VERIFY", "OVERSIZE_UPLOAD",
+        )
+        objective = file_ingress_blue_objective(experiment_id, steps)
+        marker = objective["exercise_marker"].encode("ascii")
+        sample_bytes = {
+            "CONTROL": b"PANCITO-INERT-TEXT-V1\n" + marker + b"\n",
+            "TYPE_MISMATCH": b"PANCITO-NOT-A-PNG-V1\n" + marker + b"\n",
+        }
+        oversize = b"PANCITO-INERT-OVERSIZE-V1\n" + marker + b"\n"
+        sample_bytes["OVERSIZE"] = oversize + b"X" * (1025 - len(oversize))
+        sample_names = {
+            "CONTROL": ("control.txt", "text/plain"),
+            "TYPE_MISMATCH": ("mismatch.png", "image/png"),
+            "OVERSIZE": ("oversize.bin", "application/octet-stream"),
+        }
+        extra = {
+            "method": "POST",
+            "confirmed_cells": ["TYPE_MISMATCH"],
+            "cell_outcomes": {
+                "CONTROL": "STORED_EXACTLY",
+                "TYPE_MISMATCH": "STORED_EXACTLY",
+                "OVERSIZE": "REJECTED",
+            },
+            "cleanup_status": "VERIFIED_ABSENT",
+            "final_absence_verified": True,
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+            "request_count": len(steps),
+            "maximum_request_count": 12,
+            "expected_max_bytes": 1024,
+            "samples": {
+                cell: {
+                    "filename": sample_names[cell][0],
+                    "declared_media_type": sample_names[cell][1],
+                    "size": len(content),
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                    "synthetic_inert": True,
+                }
+                for cell, content in sample_bytes.items()
+            },
+            "observations": [{"step": step} for step in steps],
+        }
     return json.dumps(
         {
             "experiment_id": experiment_id,
@@ -80,10 +129,16 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
         objective = bola_blue_objective("PURPLE-CLI-BOLA-001")
     elif technique == "authn":
         objective = authn_blue_objective("PURPLE-CLI-AUTHN-001")
-    else:
+    elif technique == "state-change":
         objective = state_change_blue_objective(
             "PURPLE-CLI-STATE-001",
             tuple(item["step"] for item in json.loads(_receipt(technique))["observations"]),
+        )
+    else:
+        receipt = json.loads(_receipt(technique))
+        objective = file_ingress_blue_objective(
+            "PURPLE-CLI-FILE-001",
+            tuple(item["step"] for item in receipt["observations"]),
         )
     value = {
         "schema_version": 1,
@@ -130,7 +185,9 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
         parse_blue_observation(oversized_integer)
 
 
-@pytest.mark.parametrize("technique", ["bola", "authn", "state-change"])
+@pytest.mark.parametrize(
+    "technique", ["bola", "authn", "state-change", "file-ingress"]
+)
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
     technique, tmp_path, capsys
 ):

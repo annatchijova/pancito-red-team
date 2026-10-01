@@ -6,8 +6,9 @@ strict offensive boundary: explicit scope, a closed capability catalogue,
 bounded execution, reproducible evidence, and sealed validation receipts.
 
 The current active executors are limited to BOLA, authentication-enforcement,
-and reversible public-state-change differential experiments against a literal
-loopback origin. All other current offensive execution is replay-only.
+reversible public-state-change, and synthetic file-ingress differential
+experiments against a literal loopback origin. All other current offensive
+execution is replay-only.
 PANCITO cannot run arbitrary commands, choose a remote network target,
 generate a payload, follow redirects, or let a model supply a verdict, score,
 confidence value, or hash.
@@ -46,6 +47,12 @@ Additional bounded capabilities are available:
   stops with `MANUAL_ACTION_REQUIRED` if restoration cannot be verified. A
   confirmed public mutation still carries `REQUIRES_HUMAN_CONTEXT`; public may
   be intentional, so execution alone does not establish security impact.
+- `offensive.file_ingress` generates three inert samples in memory: a valid
+  control, bytes that contradict a declared PNG type, and a body exactly one
+  byte above the operator-declared limit. It accepts no file path or arbitrary
+  sample bytes. Storage is confirmed only when authenticated metadata reproduces
+  the exact SHA-256 and size; every returned object ID is deleted and then
+  verified absent. An untrackable upload stops with `MANUAL_ACTION_REQUIRED`.
 - `offensive.openapi_surface` passively triages an operator-supplied OpenAPI
   JSON artifact. It produces provenance-preserving review candidates and
   explicit coverage gaps; it never contacts a target or promotes a candidate
@@ -94,6 +101,8 @@ python3 -m offensive.openapi_cli --select-authn CANDIDATE-ID \
   api.openapi.json triage-plan.json
 python3 -m offensive.openapi_cli --select-state-change CANDIDATE-ID \
   api.openapi.json triage-plan.json
+python3 -m offensive.openapi_cli --select-file-ingress CANDIDATE-ID \
+  api.openapi.json triage-plan.json
 
 # Validate a BOLA manifest and its environment-backed secrets without requests.
 python3 -m offensive.bola_cli --dry-run bola-plan.json
@@ -109,10 +118,15 @@ python3 -m offensive.authn_cli authn-plan.json
 python3 -m offensive.state_change_cli --dry-run state-change-plan.json
 python3 -m offensive.state_change_cli state-change-plan.json
 
+# Validate or run the inert, reversible file-ingress differential.
+python3 -m offensive.file_ingress_cli --dry-run file-ingress-plan.json
+python3 -m offensive.file_ingress_cli file-ingress-plan.json
+
 # Evaluate Blue visibility/detection without changing the Red result.
 python3 -m offensive.purple_cli bola red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli file-ingress red-receipt.json blue-observation.json
 ```
 
 Active manifests name environment variables that contain credentials and
