@@ -6,8 +6,7 @@ the examiner; the deterministic core, reached only through the adjudicate
 tool, produces the verdict. Swapping the model changes the wording, never the
 verdict — which is exactly the architecture test.
 
-Model: env annaconda_GEMINI_MODEL, default gemini-3.5-flash (meets the hackathon
-"Gemini 3.5 or newer" requirement; GA, fast, strong at tool-calling).
+Model: env annaconda_GEMINI_MODEL, default gemini-3.5-flash.
 """
 
 from __future__ import annotations

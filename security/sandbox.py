@@ -17,7 +17,7 @@ This module provides
   as shell metacharacters (redundant when using exec lists, but adds an
   extra layer of documentation-level clarity).
 
-SECURITY HARDENING (Kimi P1-10, SANS Hackathon 2026):
+SECURITY HARDENING (Kimi P1-10):
 * VIGIA_GREP_DEPTH enforcement via find -maxdepth (default: 5)
 * Atomic memory limit application via setrlimit preexec
 * Windows fail-safe with aggressive 5-second timeout when setrlimit unavailable

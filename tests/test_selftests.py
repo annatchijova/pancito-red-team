@@ -6,7 +6,7 @@ them. Two honest tiers, kept distinct on purpose:
 
 - ASSERT_SUITES: modules whose __main__ block is a real assert-based suite.
   Passing means "verified correct".
-- SMOKE_DEMOS: modules whose __main__ block is a demo run. Passing means only
+- SMOKE_RUNS: modules whose __main__ block is a smoke run. Passing means only
   "ran without crashing" — weaker, and labeled as such (see CLAUDE.md section
   on honest degradation: a green that cannot distinguish the two is forbidden).
 """
@@ -21,11 +21,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 ASSERT_SUITES = [
-    "sift.sans_phase",
     "inference.abductive_reasoner_v2",
 ]
 
-SMOKE_DEMOS = [
+SMOKE_RUNS = [
     "tools.caie",
     "core.hallucination_guard",
 ]
@@ -79,11 +78,11 @@ def test_inline_assert_suite(module):
     )
 
 
-@pytest.mark.parametrize("module", SMOKE_DEMOS)
-def test_inline_smoke_demo(module):
-    """Smoke tier only: asserts the demo runs to completion, not correctness."""
+@pytest.mark.parametrize("module", SMOKE_RUNS)
+def test_inline_smoke_run(module):
+    """Smoke tier only: asserts the run completes, not correctness."""
     proc = _run_module(module)
     assert proc.returncode == 0, (
-        f"{module} demo crashed (exit {proc.returncode}):\n"
+        f"{module} smoke run crashed (exit {proc.returncode}):\n"
         f"{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}"
     )

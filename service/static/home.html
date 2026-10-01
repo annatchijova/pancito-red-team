@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>annaconda — Live Purple Team Forensics</title>
+<title>PANCITO-RED-TEAM — Offensive Validation</title>
 <meta name="description" content="A live purple-team DFIR fleet whose verdicts a court could trust. The deterministic engine seals the verdict before any model speaks.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,15 +103,13 @@
 </head>
 <body class="grid-bg">
   <nav class="nav"><div class="nav-in">
-    <a class="brand" href="/">annaconda<span class="dot">.</span></a>
+    <a class="brand" href="/">PANCITO<span class="dot">.</span></a>
     <div class="row">
       <div class="nav-links">
         <a href="/console">Case queue</a>
         <a href="/fleet-console">Fleet</a>
         <a href="/exhibit">Exhibit</a>
         <a href="/consult">Mentor</a>
-        <a href="/architecture">Architecture</a>
-        <a href="/deck">Deck</a>
       </div>
       <button class="theme" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
     </div>
@@ -121,7 +119,7 @@
     <div>
       <span class="eyebrow">Live purple-team DFIR</span>
       <h1>Forensic verdicts <span class="claim">a court could trust</span></h1>
-      <p class="lede">annaconda watches an endpoint as an attack unfolds and seals a reproducible,
+      <p class="lede">PANCITO validates hostile traces and seals a reproducible,
       MITRE-mapped verdict. A fleet of Gemini agents drives and explains the investigation —
       <span class="claim">but the language model is out of the decision path.</span></p>
       <div class="cta-row">
@@ -219,7 +217,7 @@
       structure made visible: an unbroken line is a passing verification.</p>
     </div>
     <div class="panel">
-      <header><span class="title">Case DEMO-MALICE · sealed chain</span><span class="pill sealed">✓ verified</span></header>
+      <header><span class="title">Case VALIDATION-MALICE · sealed chain</span><span class="pill sealed">✓ verified</span></header>
       <div class="body">
         <ul class="spine">
           <li class="link"><div class="se"><span class="st benign">BENIGN_HIGH</span><span class="sh">7c2e…a41f</span></div><div class="sd">seq 0 · pslist + netstat · baseline running state</div></li>
@@ -236,9 +234,9 @@
       <h2>A five-minute tour</h2>
     </div>
     <div class="tour">
-      <div class="step"><span class="sn">1</span><div><h3>Run a sealed investigation</h3><p>On the <a href="/exhibit">exhibit</a>, press <b>Run sealed investigation</b>. annaconda freezes evidence windows and seals a verdict for each. Or let Gemini drive and narrate.</p></div></div>
+      <div class="step"><span class="sn">1</span><div><h3>Run a sealed investigation</h3><p>On the <a href="/exhibit">exhibit</a>, press <b>Run sealed investigation</b>. PANCITO freezes evidence windows and seals a verdict for each. Or let Gemini drive and narrate.</p></div></div>
       <div class="step"><span class="sn">2</span><div><h3>Read the verdict &amp; custody</h3><p>Each window shows its sealed state, exact score (a fraction, never a float), MITRE techniques, and the chain of custody — <code>prev → window → entry</code>.</p></div></div>
-      <div class="step"><span class="sn">3</span><div><h3>Replay to prove it</h3><p>Press <b>Replay &amp; re-verify seals</b>. annaconda re-derives every seal from the recorded windows and confirms they match. Determinism, demonstrated.</p></div></div>
+      <div class="step"><span class="sn">3</span><div><h3>Replay to prove it</h3><p>Press <b>Replay &amp; re-verify seals</b>. PANCITO re-derives every seal from the recorded windows and confirms they match.</p></div></div>
       <div class="step"><span class="sn">4</span><div><h3>Watch it run itself</h3><p>On the <a href="/fleet-console">fleet console</a>, press <b>Run a cycle</b> — the code path Cloud Scheduler runs at 3am. Switch the running department and watch the catalog refuse an over-reach.</p></div></div>
     </div>
   </section>

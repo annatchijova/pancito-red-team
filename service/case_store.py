@@ -264,13 +264,13 @@ class MemoryCaseStore:
         self._lock = threading.Lock()
 
     def create_case(self, case_id: str, host: dict, examiner_id: str,
-                    demo: bool = False, scenario: str = "benign") -> dict:
+                    scenario: str = "benign") -> dict:
         case = {
             "case_id": case_id, "host": host, "examiner_id": examiner_id,
             "created_utc": _now(), "updated_utc": _now(),
             "status": "open", "worst_verdict": None,
             "entries": [], "verdicts": [], "audit_trail": [], "runs": 0,
-            "open_question": None, "demo": demo,
+            "open_question": None,
             # Which bundled telemetry this host reports, so an unattended cycle
             # replays the same host it replayed last time.
             "scenario": scenario,
@@ -477,13 +477,13 @@ class FirestoreCaseStore:
     # -- store interface ---------------------------------------------------
 
     def create_case(self, case_id: str, host: dict, examiner_id: str,
-                    demo: bool = False, scenario: str = "benign") -> dict:
+                    scenario: str = "benign") -> dict:
         case = {
             "case_id": case_id, "host": host, "examiner_id": examiner_id,
             "created_utc": _now(), "updated_utc": _now(),
             "status": "open", "worst_verdict": None,
             "entries": [], "verdicts": [], "audit_trail": [], "runs": 0,
-            "open_question": None, "demo": demo,
+            "open_question": None,
             # Which bundled telemetry this host reports, so an unattended cycle
             # replays the same host it replayed last time.
             "scenario": scenario,

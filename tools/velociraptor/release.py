@@ -1,13 +1,13 @@
 """Where the Velociraptor binary is, for the machine actually running.
 
 The release asset name was hardcoded to ``linux-amd64`` in both the live test
-and the live demo script. On any other platform that made the suite report
+and the live validation script. On any other platform that made the suite report
 "Velociraptor binary not present" while the correct signed binary sat in the
 directory it was looking in -- a lookup bug that reads as an environment gap,
 which is worse than a failure: it makes a platform look untested when it was
 merely unlooked-at.
 
-Kept here, next to the adapter, because the test and the demo script both need
+Kept here, next to the adapter, because the test and validation script both need
 it and a helper shared by two callers should not live inside either of them.
 """
 

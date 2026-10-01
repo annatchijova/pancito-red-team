@@ -79,7 +79,7 @@ def test_enrichment_seals_into_window_but_never_reaches_the_scorer():
     enrichment = threat_intel.enrich(ARTIFACTS, fetcher=fixture_fetch, source="virustotal")
     window = build_evidence_window(
         case_id="TI-01", sequence=0, source="velociraptor",
-        host={"client_id": "C.demo", "hostname": "WIN11"},
+        host={"client_id": "C.fixture", "hostname": "WIN11"},
         time_start_utc="2026-08-19T00:00:00Z", time_end_utc="2026-08-19T00:01:00Z",
         collection={}, artifacts=ARTIFACTS, manifest=[], enrichment=enrichment)
     # sealed into the window and tamper-evident
@@ -94,7 +94,7 @@ def test_enrichment_seals_into_window_but_never_reaches_the_scorer():
     # an identical case: enrichment changes the sealed record, never the verdict.
     bare = build_evidence_window(
         case_id="TI-01", sequence=0, source="velociraptor",
-        host={"client_id": "C.demo", "hostname": "WIN11"},
+        host={"client_id": "C.fixture", "hostname": "WIN11"},
         time_start_utc="2026-08-19T00:00:00Z", time_end_utc="2026-08-19T00:01:00Z",
         collection={}, artifacts=ARTIFACTS, manifest=[])
     assert window_to_case(bare) == case
@@ -125,7 +125,7 @@ def fetch(t, v):
     return db.get((t, v))
 enr = threat_intel.enrich(ARTIFACTS, fetcher=fetch, source="virustotal")
 w = build_evidence_window(case_id="TI-01", sequence=0, source="velociraptor",
-    host={"client_id": "C.demo", "hostname": "WIN11"},
+    host={"client_id": "C.fixture", "hostname": "WIN11"},
     time_start_utc="2026-08-19T00:00:00Z", time_end_utc="2026-08-19T00:01:00Z",
     collection={}, artifacts=ARTIFACTS, manifest=[], enrichment=enr)
 print(w["window_hash"])

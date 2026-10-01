@@ -3,10 +3,10 @@ Velociraptor, seal it, adjudicate it.
 
 This uses the Velociraptor binary's own VQL engine to query THIS host — real
 processes from a real endpoint, not fixtures — then runs the exact same
-sealed-window pipeline the demo uses. It is the milestone for workstream A:
-annaconda's evidence source can be live Velociraptor.
+sealed-window pipeline used by the replay validator. It proves the live path:
+PANCITO's evidence source can be live Velociraptor.
 
-    python3 scripts_lib/live_velociraptor_demo.py [path-to-velociraptor-binary]
+    python3 scripts_lib/validate_live_velociraptor.py [path-to-velociraptor-binary]
 
 To point it at a lab instead of this host, construct the transport with
 api_config=<api.config.yaml> and VQL like
@@ -50,7 +50,7 @@ def main() -> int:
 
     window, reports = collect_window(
         transport,
-        case_id="LIVE-DEMO-001", sequence=0, source="velociraptor",
+        case_id="LIVE-VALIDATION-001", sequence=0, source="velociraptor",
         # Custody, not decoration: the host block is sealed into the window and
         # travels with the evidence. This said "linux" regardless of the machine
         # it ran on, so a collection taken on Windows or macOS produced a REAL

@@ -5,6 +5,7 @@
 .pytest_cache
 *.bak
 scratch/
+.cleanup-archive/
 # The Velociraptor binary is large and reproducible via setup script; the
 # service talks to Velociraptor over its API, it does not embed it.
 tools/velociraptor/velociraptor-*

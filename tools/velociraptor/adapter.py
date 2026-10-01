@@ -172,7 +172,7 @@ class Transport(Protocol):
 
 
 class MockTransport:
-    """Fixture-backed transport for development, tests, and demo replay.
+    """Fixture-backed transport for development, tests, and replay validation.
 
     Maps artifact name -> ``<fixtures_dir>/<artifact>.json`` (a JSON list of
     rows). Deterministic by construction: flow ids derive from the artifact

@@ -11,7 +11,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Application code. The forensic core is stdlib-only; the bundled demo
+# Application code. The forensic core is stdlib-only; the replay validator
 # evidence (tests/fixtures/velociraptor) lets the service run without a live
 # Velociraptor endpoint until the lab is wired.
 COPY . .

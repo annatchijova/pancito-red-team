@@ -17,8 +17,7 @@ Investigation modes (POST /investigate body: {"mode": ...}):
              (deterministic, free — the replay/dashboard path)
   agent    : the ADK+Gemini agent drives the hunt and narrates
 
-State is in-memory per instance: fine for a single-instance demo. Firestore is
-the production upgrade for shared, durable state (noted in PLAN.md); it does
+State is in-memory per instance unless Firestore is configured. Storage does
 not touch the seal, only where the seal is stored.
 """
 
@@ -59,8 +58,8 @@ _KASSANDRA_POSTURE = kassandra_posture()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-DEMO_EVIDENCE = Path(
-    os.environ.get("VIGIA_DEMO_EVIDENCE",
+REPLAY_EVIDENCE = Path(
+    os.environ.get("VIGIA_REPLAY_EVIDENCE",
                    str(REPO_ROOT / "tests" / "fixtures" / "velociraptor")))
 # Attack-scenario telemetry: a compromised endpoint (process hollowing + a
 # timestomped C2 beacon). The deterministic core catches it structurally — a
@@ -81,12 +80,11 @@ app = FastAPI(
 # page links /assets/app.css instead of inlining its own <style> and drifting.
 app.mount("/assets", StaticFiles(directory=str(STATIC_DIR)), name="assets")
 
-# In-memory investigation store (one-off demo runs): {investigation_id: {...}}.
+# In-memory investigation store for one-off replay runs.
 _STORE: dict[str, dict] = {}
 
-# Lightweight rate limiter for the paid-model endpoints, so a public demo URL
-# cannot burn the quota. Per-instance sliding window — coarse but enough to stop
-# a hammer; tune with the env vars. (Wall clock is fine here: not a sealed path.)
+# Lightweight rate limiter for paid-model endpoints. Per-instance sliding
+# window; tune with the env vars. (Wall clock is fine here: not a sealed path.)
 _RATE_MAX = int(os.environ.get("VIGIA_RATE_MAX", "8"))
 _RATE_WINDOW_S = int(os.environ.get("VIGIA_RATE_WINDOW_S", "60"))
 _RATE_HITS: dict[str, list] = {}
@@ -125,16 +123,17 @@ INSUFFICIENT_EVIDENCE = Path(
 
 
 def _transport(scenario: str = "benign"):
-    """Demo transport. Live Velociraptor (RestTransport) is swapped in via env
-    once a lab endpoint exists; until then the service runs on bundled demo
-    evidence, deterministically. ``scenario`` selects benign baseline, the
-    compromised-endpoint attack telemetry, or the attacker-controlled-evidence
-    (prompt injection) scenario."""
+    """Fixture-backed replay transport for deterministic validation.
+
+    ``scenario`` selects a benign baseline, compromised-endpoint telemetry, or
+    attacker-controlled evidence. This service path does not claim live
+    collection; live Velociraptor validation is a separate operator command.
+    """
     return MockTransport({
         "attack": ATTACK_EVIDENCE,
         "injection": INJECTION_EVIDENCE,
         "insufficient": INSUFFICIENT_EVIDENCE,
-    }.get(scenario, DEMO_EVIDENCE))
+    }.get(scenario, REPLAY_EVIDENCE))
 
 
 def _new_session(case_id: str, examiner_id: str,
@@ -142,7 +141,7 @@ def _new_session(case_id: str, examiner_id: str,
     return PurpleTeamSession(
         _transport(scenario),
         case_id=case_id,
-        host={"client_id": "C.demo01", "hostname": "WIN11-VICTIM", "os": "windows"},
+        host={"client_id": "C.replay01", "hostname": "WIN11-VICTIM", "os": "windows"},
         examiner_id=examiner_id,
         out_dir=Path(mkdtemp(prefix="vigia-inv-")),
         source="replay",
@@ -204,18 +203,6 @@ def fleet_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "fleet.html")
 
 
-@app.get("/architecture", include_in_schema=False)
-def architecture_page() -> FileResponse:
-    """End-to-end architecture walkthrough."""
-    return FileResponse(STATIC_DIR / "architecture.html")
-
-
-@app.get("/deck", include_in_schema=False)
-def deck_page() -> FileResponse:
-    """The pitch deck, rendered as an in-browser slide viewer."""
-    return FileResponse(STATIC_DIR / "deck.html")
-
-
 def _threat_intel_posture() -> str:
     """The external-enrichment backend, or 'unavailable' when no key is set."""
     from agent.threat_intel import posture
@@ -263,10 +250,10 @@ def health() -> dict:
                               else "deterministic-fallback"),
         "fleet_department": autonomy.COMMANDER_DEPARTMENT,
         # Whether a tasking must present a verified identity, or may assert its
-        # department. The demo asserts; the record always says which.
+        # department. An asserted replay principal remains explicit in records.
         "requires_authenticated_principal": principal_mod.require_authenticated(),
         # What an unauthenticated caller is treated as. Stated, because it is a
-        # posture: on this demo it is the department cleared for every agent.
+        # posture: this is the department used for an unauthenticated replay.
         "unauthenticated_default_department": principal_mod.default_department(),
         "tracing": tracing_mode(),
         "narrators": {
@@ -275,7 +262,7 @@ def health() -> dict:
                 "backend": "vertex-ai" if os.environ.get(
                     "GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE" else "developer-api",
             },
-            "naive_demo": {"model": NAIVE_MODEL, "backend": "developer-api"},
+            "baseline_narrator": {"model": NAIVE_MODEL, "backend": "developer-api"},
         },
     }
 
@@ -414,7 +401,7 @@ async def investigate(req: InvestigateRequest, request: Request) -> dict:
 class CaseCreateRequest(BaseModel):
     case_id: str = Field(..., pattern=r"^[A-Za-z0-9._-]{1,128}$")
     hostname: str = Field("WIN11-VICTIM", min_length=1, max_length=256)
-    client_id: str = Field("C.demo01", min_length=1, max_length=256)
+    client_id: str = Field("C.replay01", min_length=1, max_length=256)
     examiner_id: str = Field(..., min_length=1, max_length=128)
     # Which bundled telemetry this host reports. The autonomous fleet replays
     # it on every unattended cycle, so it is a property of the case, not of one
@@ -452,7 +439,7 @@ def _session_for_case(case: dict, scenario: str) -> PurpleTeamSession:
 
 @app.post("/cases")
 def create_case(req: CaseCreateRequest) -> dict:
-    # A created case is due immediately, so on the public demo one
+    # A created case is due immediately, so on a public endpoint one
     # unauthenticated POST here buys one Gemini turn on the next sweep. The cap
     # in the sweep bounds the cost; this bounds the rate of arrival.
     if not _rate_ok("create_case"):
@@ -625,7 +612,7 @@ async def investigate_case(case_id: str, req: CaseInvestigateRequest,
     }
 
 
-# --- prompt-injection demo: the attacker controls the evidence ---------------
+# --- prompt-injection validation: the attacker controls the evidence ----------
 
 NAIVE_MODEL = os.environ.get("VIGIA_NAIVE_MODEL", "gemma-4-26b-a4b-it")
 
@@ -682,7 +669,7 @@ def _evidence_text(artifacts: list) -> str:
 def _naive_narrate(evidence_fragment: str, kassandra: KassandraSession) -> str:
     """A DELIBERATELY naive narrator (Gemma): it reads the evidence and forms
     its own opinion, with no sealed verdict to anchor it. This is the vulnerable
-    design annaconda rejects — it exists here only to show the attack landing."""
+    design PANCITO rejects — it exists only to validate the trust boundary."""
     client = _gemma_client()
     prompt = (
         kassandra.system_instruction()
@@ -707,10 +694,10 @@ def fleet_investigate(req: FleetRequest, request: Request) -> dict:
     """Run the specialized fleet over a case: a dispatcher routes collection to
     per-domain hunters (disjoint tool contracts), and the correlator — the only
     role that can reach the sealed core — adjudicates and verifies. Deterministic
-    orchestration, so it is reliable on camera."""
+    orchestration, so the validation is reproducible."""
     from agent.fleet import FLEET, contract_names, dispatch_investigation
     principal = _principal_for(request, req.department)
-    session = _new_session("FLEET-DEMO", "perito-01", scenario=req.scenario)
+    session = _new_session("FLEET-VALIDATION", "perito-01", scenario=req.scenario)
     try:
         # Every specialist the dispatch will drive is authorized for this
         # department first — the fleet is a composition of tool contracts, and
@@ -725,11 +712,11 @@ def fleet_investigate(req: FleetRequest, request: Request) -> dict:
     return report
 
 
-@app.post("/injection-demo")
-def injection_demo(request: Request) -> dict:
+@app.post("/injection-validation")
+def injection_validation(request: Request) -> dict:
     """Show the genuine threat of putting an LLM in DFIR: the attacker writes the
     evidence. A naive narrator that trusts the evidence gets baited into calling
-    a compromised host benign — but annaconda's sealed verdict, produced before
+    a compromised host benign — but PANCITO's sealed verdict, produced before
     any model runs, is MALICE and cannot be moved. The hallucination guard flags
     the baited narration against the seal."""
     from vigia_scorer import _vigia_score
@@ -737,12 +724,12 @@ def injection_demo(request: Request) -> dict:
 
     if not _rate_ok("injection"):
         raise HTTPException(status_code=429,
-                            detail="rate limited — this demo calls paid models; "
+                            detail="rate limited — this validation calls paid models; "
                                    "try again in a few seconds")
 
     _authorize(request, INVESTIGATOR_AGENT, claimed=None,
                data_classes=INVESTIGATOR_DATA_CLASSES)
-    session = _new_session("INJECTION-DEMO", "perito-01", scenario="injection")
+    session = _new_session("INJECTION-VALIDATION", "perito-01", scenario="injection")
     summary = session.run_hunt(["pslist", "netstat"], reason="attacker-controlled evidence")
     window = session._windows[summary["window_id"]]
     artifacts = window["artifacts"]
@@ -754,7 +741,7 @@ def injection_demo(request: Request) -> dict:
     # What the attacker planted, pulled straight from the evidence. The bait is
     # a command line carrying a fake verdict to address a narrator directly —
     # here a forged EDR annotation ("FINAL CLASSIFICATION: BENIGN"); the classic
-    # "ignore previous instructions" is the same shape. Match either so the demo
+    # "ignore previous instructions" is the same shape. Match either so the run
     # never shows an empty planted line just because the fixture's bait style
     # changed.
     _BAIT_MARKERS = ("edr-annotation", "final classification",
@@ -784,7 +771,7 @@ def injection_demo(request: Request) -> dict:
     try:
         naive = _naive_narrate(
             kassandra_envelope.prompt_fragment, kassandra_session)
-    except Exception as exc:  # noqa: BLE001 — demo must not 500 on model hiccup
+    except Exception as exc:  # noqa: BLE001 — validation must report degradation
         naive = f"(naive narrator unavailable: {exc})"
     kassandra_assessment = kassandra_session.verify_model_response(
         naive, kassandra_envelope)
@@ -856,7 +843,7 @@ _SWEEP_STATE = {"count": 0, "last_utc": None, "last_swept": 0,
                 "last_deferred": 0}
 
 # How many cycles one wake-up may run. Each cycle is a Gemini turn, and case
-# creation is unauthenticated on the public demo, so without a cap the cost of a
+# creation may be unauthenticated, so without a cap the cost of a
 # sweep is set by whoever created the most cases. Cases past the cap are not
 # dropped — they are deferred to the next wake-up, worst first.
 SWEEP_MAX_CYCLES = int(os.environ.get("VIGIA_SWEEP_MAX_CYCLES", "10"))
@@ -930,10 +917,6 @@ async def sweep(req: Request) -> dict:
         cid = row["case_id"]
         case = _CASE_STORE.get_case(cid)
         if case is None:
-            continue
-        # Demo/showcase cases are left untouched so a judge always sees a clean,
-        # predictable state (they drive those from /console themselves).
-        if case.get("demo"):
             continue
         if len(worked) >= SWEEP_MAX_CYCLES:
             # Deferred, not dropped — and said out loud, because a sweep that
@@ -1173,37 +1156,6 @@ def acknowledge_escalation(case_id: str, index: str, req: AcknowledgeRequest,
     return {"acknowledged": entry, "now_showing": mission.get("escalation")}
 
 
-@app.post("/demo/seed")
-def demo_seed() -> dict:
-    """Reset the showcase to a clean, predictable state — so a judge arriving on
-    any day of the review window sees the same three cases: a resolved-benign
-    host, a compromised host, and a host stuck in ABSTAIN with an open question
-    ready to be reopened. These demo cases are excluded from the autonomous
-    sweep, so nothing mutates them behind the judge's back."""
-    if not _rate_ok("demo_seed"):
-        raise HTTPException(status_code=429,
-                            detail="rate limited — seeding deletes and rebuilds "
-                                   "the showcase cases")
-    host = {"client_id": "C.demo", "hostname": "WIN11-VICTIM", "os": "windows"}
-    plan = {
-        "DEMO-BENIGN": ("benign", [["pslist", "netstat"]]),
-        "DEMO-MALICE": ("attack", [["pslist", "netstat"]]),
-        "DEMO-ABSTAIN": ("insufficient", [["pslist"]]),
-    }
-    for cid, (scenario, groups) in plan.items():
-        _CASE_STORE.delete_case(cid)
-        # The scenario is stored on the case so an on-demand autonomous cycle
-        # replays this host's telemetry, not the benign default.
-        case = _CASE_STORE.create_case(cid, dict(host, hostname=cid.split("-")[1]),
-                                       "perito-01", demo=True, scenario=scenario)
-        session = _session_for_case(case, scenario)
-        result = _run_scripted(session, groups)
-        _CASE_STORE.apply_run(cid, list(session._entries),
-                              result["verdicts"], session.audit_trail)
-    return {"seeded": list(plan), "note": "demo cases are excluded from the "
-            "autonomous sweep so they stay stable for review"}
-
-
 @app.get("/investigations/{inv_id}")
 def get_investigation(inv_id: str) -> dict:
     record = _STORE.get(inv_id)
@@ -1250,7 +1202,7 @@ async def consult(req: ConsultRequest) -> dict:
     # ValueError in the log. The consult page is shipped UI, so anyone running
     # the service without a key met a broken panel rather than a stated reason.
     #
-    # Unlike /injection-demo, /consult has no deterministic result to fall back
+    # Unlike /injection-validation, /consult has no deterministic fallback
     # to -- a consultation without a model is nothing -- so it refuses. What it
     # must not do is refuse anonymously: 503 with the cause is the same
     # vocabulary /health already uses for its unavailable components, and

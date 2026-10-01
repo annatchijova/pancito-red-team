@@ -3,7 +3,7 @@ vigia/core/likelihood_ratio.py
 ─────────────────────────────────────────────────────────────────────────────
 LikelihoodEngine v0 — Motor de Inferencia Bayesiana de VIGÍA.
 
-DISEÑO: Consenso ChatGPT / Gemini / DeepSeek / Claude (15-jun-2026 hackathon)
+DISEÑO: Consenso ChatGPT / Gemini / DeepSeek / Claude (15-jun-2026)
 
     PIPELINE:
         SignalOutput[] → z_clipping → log-LR → penalización por correlación

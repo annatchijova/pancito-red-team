@@ -419,7 +419,7 @@ def test_a_case_written_before_segmentation_keeps_its_history(store):
         "case_id": "LEGACY", "host": {"hostname": "WIN11"},
         "examiner_id": "perito", "created_utc": "2026-08-01T00:00:00Z",
         "updated_utc": "2026-08-01T00:00:00Z", "status": "malice",
-        "worst_verdict": "MALICE_HIGH", "runs": 1, "demo": False,
+        "worst_verdict": "MALICE_HIGH", "runs": 1,
         "scenario": "attack", "open_question": None,
         "entries": [_entry(i) for i in range(5)],
         "verdicts": [{"verdict_state": "MALICE_HIGH"}],

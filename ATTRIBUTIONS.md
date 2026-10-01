@@ -1,15 +1,10 @@
 # Attributions
 
-PANCITO-RED-TEAM builds on pre-existing and third-party work. This file
-discloses what was incorporated, per the disclosure requirement of the All
-Things Agentic Hackathon (Google/Gemini): pre-existing code may be used as a
-foundation provided the submission discloses it and demonstrably builds upon
-it.
-
-The line between pre-existing and new: the **deterministic forensic core** is
-prior work (VIGÍA, below); everything that makes annaconda a live, agentic,
-Google-Cloud purple-team tool was **built for this submission** and is listed
-under "New in this submission".
+PANCITO-RED-TEAM builds on pre-existing and third-party work. This file records
+what was incorporated, which terms apply, and where original PANCITO work
+begins. The deterministic forensic core and much of the connected service are
+inherited from VIGÍA/annaconda; the bounded offensive-validation layer is
+specific to PANCITO.
 
 ## Repository licensing scope
 
@@ -28,8 +23,8 @@ separate AGPLv3 program. See each upstream project for additional notices.
 <https://github.com/annatchijova/vigia-intent-analysis>
 
 A deterministic forensic-intent engine (Peircean semiotics, Daubert-oriented),
-originally built for the SANS FIND EVIL hackathon — pre-dates this submission.
-annaconda uses it as its sealed decision core. Incorporated subsystems:
+developed before PANCITO. PANCITO uses it as its sealed decision core.
+Incorporated subsystems:
 
 - The deterministic scorer (`vigia_scorer.py`) and its dependency closure:
   canonical serialization (`core/canonicalize.py`), evidence aggregation, the
@@ -37,7 +32,7 @@ annaconda uses it as its sealed decision core. Incorporated subsystems:
   stability.
 - **CAIE — the Cross-Artifact Incongruence Engine (`tools/caie.py`)**: the
   cross-artifact fracture detectors (temporal-causality, process-injection,
-  log-vs-memory, etc.) that produce the sealed verdicts annaconda demonstrates,
+  log-vs-memory, etc.) that produce PANCITO's sealed replay verdicts,
   and the MITRE ATT&CK mapping (`tools/mitre_mapping.py`).
 - The 8-state quadripartite verdict (`verdict/quadripartite.py`) and the
   abductive reasoner (`inference/`).
@@ -48,12 +43,9 @@ annaconda uses it as its sealed decision core. Incorporated subsystems:
 - The LLM hallucination guard (`core/hallucination_guard.py`) — narrative
   claims mechanically verified against the sealed motor output.
 
-This is the majority of the ~38 KLOC in the repository. It is disclosed here in
-full; annaconda's own new code is listed separately below so a reviewer can draw
-the line without guessing.
-
-Other prior projects (CRONOS, MNEME, raven-memory, MUTANTE) are **not** included
-in this submission and are not imported by any module here.
+This remains the majority of the repository and is disclosed so the provenance
+line is explicit. Other prior projects (CRONOS, MNEME, raven-memory, MUTANTE)
+are not included and are not imported by any module here.
 
 ### Protocol Kassandra — VIGÍA lineage (Apache-2.0)
 
@@ -66,9 +58,11 @@ separate HMAC event chain.
 
 ---
 
-## New in this submission (built for this hackathon)
+## Connected annaconda layer retained during migration
 
-Everything that turns the deterministic core into a live, agentic, cloud tool:
+These components connect the deterministic core to the inherited agentic and
+service surfaces. They remain connected and tested, but are not evidence that
+PANCITO has a production deployment:
 
 - **Two Google ADK + Gemini agents** (`agent/`): the investigator that drives
   the hunt loop (`purple_team_agent.py`, `tools.py`) and the mentor for junior
@@ -80,7 +74,7 @@ Everything that turns the deterministic core into a live, agentic, cloud tool:
   tamper-evident chain that makes a case one continuing record.
 - **The Cloud Run service** (`service/`): FastAPI backend, the Firestore-backed
   case store (`case_store.py`), the analyst console and court-exhibit UI, the
-  prompt-injection defense demo, and the autonomous sweep
+  prompt-injection validation, and the autonomous sweep
   (Cloud Scheduler → Pub/Sub → `/tasks/sweep`).
 - **The ML triage nominator** (`ml/nominator.py`) — see the Camel attribution
   below.
@@ -134,7 +128,7 @@ only.
 
 ## Models
 
-Gemini 3.5 (via Vertex AI) narrates and drives the agents; Gemma
-(`gemma-4-26b-a4b-it`, via the Gemini Developer API) is the naive narrator in the
-prompt-injection demo. No model is in the decision path — the verdict is sealed
-by the deterministic core before any model runs.
+Gemini can narrate and drive the inherited agent layer; Gemma
+(`gemma-4-26b-a4b-it`, via the Gemini Developer API) is the baseline narrator in
+the prompt-injection validation. No model is in the decision path: the verdict
+is sealed by the deterministic core before any model runs.

@@ -6,7 +6,7 @@
 #
 # VIGÍA Autonomous Forensic Agent
 # ================================
-# Agentic loop for SANS FIND EVIL Hackathon 2026.
+# Agentic loop for deterministic forensic investigation.
 #
 # Architecture: Custom MCP Server pattern (architectural guardrails, not prompt-based).
 # Self-correction (designed, structurally inert — B-224, L-069, see
@@ -2037,7 +2037,7 @@ def _validate_agent_output_path(
 def main() -> None:
     _warn_missing_critical_deps()
     parser = argparse.ArgumentParser(
-        description="VIGÍA Autonomous Forensic Agent — SANS FIND EVIL Hackathon 2026",
+        description="VIGÍA Autonomous Forensic Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
