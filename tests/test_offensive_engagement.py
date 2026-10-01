@@ -89,6 +89,14 @@ def test_manifest_rejects_ambiguous_or_authority_expanding_input(
         load_engagement(_write_manifest(tmp_path, _manifest(**change)))
 
 
+@pytest.mark.parametrize("engagement_id", [".", ".."])
+def test_manifest_rejects_path_segment_engagement_ids(tmp_path, engagement_id):
+    with pytest.raises(EngagementFormatError, match="engagement_id"):
+        load_engagement(
+            _write_manifest(tmp_path, _manifest(engagement_id=engagement_id))
+        )
+
+
 def test_manifest_has_a_hard_size_limit(tmp_path):
     path = tmp_path / "oversized.json"
     path.write_bytes(b" " * 65_537)

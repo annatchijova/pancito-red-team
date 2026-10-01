@@ -140,9 +140,10 @@ def load_engagement(path: str | Path) -> EngagementPlan:
         raise EngagementFormatError("operator_acknowledged must be literal true")
 
     engagement_id = _required_text(data, "engagement_id", maximum=128)
-    if not _ID_RE.fullmatch(engagement_id):
+    if (not _ID_RE.fullmatch(engagement_id)
+            or engagement_id in {".", ".."}):
         raise EngagementFormatError(
-            "engagement_id must match [A-Za-z0-9._-]{1,128}"
+            "engagement_id must be a safe [A-Za-z0-9._-]{1,128} component"
         )
     authorization_reference = _required_text(
         data, "authorization_reference", maximum=512

@@ -38,6 +38,12 @@ def test_campaign_refuses_a_target_outside_the_bundled_lab(tmp_path):
         ReplayCampaign(_grant(target="example.com"), out_dir=tmp_path)
 
 
+@pytest.mark.parametrize("authorization_id", [".", ".."])
+def test_grant_rejects_path_segment_authorization_ids(authorization_id):
+    with pytest.raises(ValueError, match="authorization_id"):
+        _grant(authorization_id=authorization_id)
+
+
 def test_campaign_refuses_a_scenario_not_named_in_the_grant(tmp_path):
     campaign = ReplayCampaign(_grant(allowed_scenarios=()), out_dir=tmp_path)
     with pytest.raises(AuthorizationError, match="not authorized"):

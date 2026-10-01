@@ -55,8 +55,11 @@ class AuthorizationGrant:
     source_sha256: str = ""
 
     def __post_init__(self) -> None:
-        if not _ID_RE.fullmatch(self.authorization_id):
-            raise ValueError("authorization_id must match [A-Za-z0-9._-]{1,128}")
+        if (not _ID_RE.fullmatch(self.authorization_id)
+                or self.authorization_id in {".", ".."}):
+            raise ValueError(
+                "authorization_id must be a safe [A-Za-z0-9._-]{1,128} component"
+            )
         if self.target != _LAB_TARGET:
             raise AuthorizationError(
                 f"target must be {_LAB_TARGET!r}; live or remote targets are "
