@@ -120,7 +120,7 @@
       <span class="eyebrow">Live purple-team DFIR</span>
       <h1>Forensic verdicts <span class="claim">a court could trust</span></h1>
       <p class="lede">PANCITO validates hostile traces and seals a reproducible,
-      MITRE-mapped verdict. A fleet of Gemini agents drives and explains the investigation —
+      MITRE-mapped verdict. A fleet of selected-provider agents drives and explains the investigation —
       <span class="claim">but the language model is out of the decision path.</span></p>
       <div class="cta-row">
         <a class="btn btn-primary btn-lg" href="/fleet-console">Watch the fleet work &rarr;</a>
@@ -156,7 +156,7 @@
 
   <section class="wrap"><div class="invariant">
     <p><b>The one invariant.</b> The deterministic engine produces and seals the verdict
-    <span class="claim">before any model describes it.</span> Swap the narrator — Gemini, another
+    <span class="claim">before any model describes it.</span> Swap the narrator — OpenAI, Gemini, another
     model, none at all — and the verdict, its score, and its hash never change. That is what makes
     the result reproducible bit-for-bit, and defensible.</p>
   </div></section>
@@ -182,7 +182,7 @@
     <div class="section-head">
       <span class="eyebrow">A fleet, one rule</span>
       <h2>They act, delegate and explain. None of them decides.</h2>
-      <p class="lede">All built on Google's Agent Development Kit and Gemini. The verdict is always the sealed engine's.</p>
+      <p class="lede">Built on Google's Agent Development Kit with an explicit OpenAI or Gemini provider. The verdict is always the sealed engine's.</p>
     </div>
     <div class="agents">
       <div class="agent">
@@ -234,7 +234,7 @@
       <h2>A five-minute tour</h2>
     </div>
     <div class="tour">
-      <div class="step"><span class="sn">1</span><div><h3>Run a sealed investigation</h3><p>On the <a href="/exhibit">exhibit</a>, press <b>Run sealed investigation</b>. PANCITO freezes evidence windows and seals a verdict for each. Or let Gemini drive and narrate.</p></div></div>
+      <div class="step"><span class="sn">1</span><div><h3>Run a sealed investigation</h3><p>On the <a href="/exhibit">exhibit</a>, press <b>Run sealed investigation</b>. PANCITO freezes evidence windows and seals a verdict for each. Or let the selected model drive and narrate.</p></div></div>
       <div class="step"><span class="sn">2</span><div><h3>Read the verdict &amp; custody</h3><p>Each window shows its sealed state, exact score (a fraction, never a float), MITRE techniques, and the chain of custody — <code>prev → window → entry</code>.</p></div></div>
       <div class="step"><span class="sn">3</span><div><h3>Replay to prove it</h3><p>Press <b>Replay &amp; re-verify seals</b>. PANCITO re-derives every seal from the recorded windows and confirms they match.</p></div></div>
       <div class="step"><span class="sn">4</span><div><h3>Watch it run itself</h3><p>On the <a href="/fleet-console">fleet console</a>, press <b>Run a cycle</b> — the code path Cloud Scheduler runs at 3am. Switch the running department and watch the catalog refuse an over-reach.</p></div></div>
@@ -244,7 +244,7 @@
   <section class="wrap section">
     <div class="section-head"><span class="eyebrow">Built on</span></div>
     <div class="stack-tags">
-      <span class="tag">Gemini · via Vertex AI</span>
+      <span class="tag">OpenAI or Gemini · explicit selection</span>
       <span class="tag">Google ADK</span>
       <span class="tag">Cloud Run</span>
       <span class="tag">Firestore</span>

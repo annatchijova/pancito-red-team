@@ -184,8 +184,8 @@ function renderCycle(body){
       ` That is the fleet pacing itself, not an error.</p>`;
     return;
   }
-  const planner = c.planner === "gemini"
-    ? `<span class="ok">Gemini commander</span>`
+  const planner = ["google", "openai", "injected-model"].includes(c.planner)
+    ? `<span class="ok">${esc(c.planner)} commander</span>`
     : `<span class="mono">deterministic fallback</span> <span class="dt">(no model reachable — this is the rule-based planner, not agent reasoning)</span>`;
   const steps = c.fleet_log.map(e => `
     <div class="step">

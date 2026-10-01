@@ -1,4 +1,4 @@
-"""The mentor agent — an ADK+Gemini consultant for junior forensic examiners.
+"""The mentor agent — an ADK consultant for junior forensic examiners.
 
 A second ADK agent, distinct from the investigator. Where the investigator
 DRIVES a hunt, this one TEACHES: a junior perito asks it questions and it
@@ -14,7 +14,7 @@ with the examiner and the deterministic engine.
 from __future__ import annotations
 
 from agent.consult_tools import ConsultTools
-from agent.purple_team_agent import model_id
+from agent.model_provider import model_for_adk
 
 INSTRUCTION = """\
 You are annaconda's mentor: a patient, precise forensic-investigation advisor for \
@@ -66,7 +66,7 @@ def build_consult_agent(tools: ConsultTools, *, model: str | None = None):
                      [t.__name__ for t in tool_list])
     return Agent(
         name="vigia_mentor",
-        model=model or model_id(),
+        model=model if model is not None else model_for_adk(),
         description=(
             "Mentor for junior forensic examiners: explains DFIR methodology, "
             "MITRE ATT&CK, and annaconda's sealed verdicts. Guides, never decides."

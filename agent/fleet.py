@@ -21,7 +21,7 @@ The single-investigator route is untouched; the fleet is additive.
 
 from __future__ import annotations
 
-from agent.purple_team_agent import model_id
+from agent.model_provider import model_for_adk
 from agent.tools import PurpleTeamSession
 
 from agent._tracing import span as _span
@@ -127,7 +127,7 @@ def build_specialist(name: str, session: PurpleTeamSession, *, model=None):
     require_approved(name, REGISTRY_VERSION, [t.__name__ for t in tools])
     return Agent(
         name=f"vigia_{name.replace('-', '_')}",
-        model=model or model_id(),
+        model=model if model is not None else model_for_adk(),
         description=f"annaconda fleet · {name}: {spec['role']}",
         instruction=_SPECIALIST_INSTRUCTION.format(name=name, role=spec["role"]),
         tools=tools,

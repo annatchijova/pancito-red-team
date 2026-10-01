@@ -106,11 +106,32 @@ BOLA manifests name environment variables that contain both credentials and
 canaries; secrets are never accepted inline in the manifest or emitted in the
 receipt.
 
+### Optional OpenAI narration and agent provider
+
+OpenAI can drive the unsealed ADK agent and narrate an already sealed verdict.
+It cannot supply or modify a verdict, score, confidence value, technique, or
+hash. Provider selection is explicit so merely having a key in the environment
+does not spend credit:
+
+```bash
+export PANCITO_MODEL_PROVIDER=openai
+export OPENAI_API_KEY='set-this-in-your-shell-or-secret-manager'
+# Optional; defaults to gpt-6-astra.
+export OPENAI_MODEL=gpt-6-astra
+```
+
+Do not put the key in a manifest, `.env` committed to Git, command-line
+argument, prompt, or log. For deployment, inject `OPENAI_API_KEY` from the
+platform secret manager. `/health` reports provider, model, backend, and
+availability, but never credential material. Without the selected provider's
+credential, agent/consult routes fail explicitly while deterministic replay and
+sealed verdict paths remain available.
+
 ## Security invariants
 
 - Every action must test a Blue control on an explicitly authorized target.
 - Capabilities are curated code, never model-authored commands.
-- The model stays outside the forensic decision and seal paths.
+- Every model provider stays outside the forensic decision and seal paths.
 - Sealed values use deterministic, exact arithmetic and canonical SHA-256.
 - A failed or incomplete observation is explicit; it never becomes a false
   clean result.

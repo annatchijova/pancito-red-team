@@ -266,7 +266,7 @@ async function investigate(mode, scenario){
   $("mCase").textContent=caseId;
   $("mScenario").textContent=scenario==="attack"?"compromised":"benign";
   $("mScenario").style.color=scenario==="attack"?"var(--malice)":"var(--benign)";
-  setBusy(true, mode==="agent"?"agent investigating (Gemini)…":(scenario==="attack"?"analyzing compromised endpoint…":"sealing windows…"));
+  setBusy(true, mode==="agent"?"agent investigating (selected model)…":(scenario==="attack"?"analyzing compromised endpoint…":"sealing windows…"));
   try{
     const payload={case_id:caseId,examiner_id:"purple-op-01",mode,scenario};
     if(mode==="agent") payload.prompt="Investigate this endpoint: collect its processes and network connections together as one window, then adjudicate it and report the sealed verdict exactly, including any MITRE techniques.";

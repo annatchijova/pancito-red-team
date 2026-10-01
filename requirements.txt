@@ -5,6 +5,10 @@ uvicorn[standard]==0.47.0
 sse-starlette==3.4.4
 google-adk==2.1.0
 google-genai==1.75.0
+# Optional selected provider for the unsealed agent/narration layer. These
+# dependencies never enter the deterministic verdict or seal path.
+litellm>=1.83.7,<=1.83.14
+openai>=1.100.2,<3
 google-cloud-firestore==2.28.1
 # Sealed-verdict push to Google SecOps (Chronicle) over Pub/Sub (optional;
 # degrades to 'unavailable' when the client or SECOPS_PUBSUB_TOPIC is absent).

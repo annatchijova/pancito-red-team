@@ -34,7 +34,7 @@ def client():
 
 
 def test_the_cycle_endpoint_is_rate_limited(client):
-    """An agentic cycle calls Gemini, so a public endpoint must not be a way to
+    """An agentic cycle calls a paid model, so a public endpoint must not be a way to
     burn the quota."""
     from service.app import _RATE_HITS, _RATE_MAX
     _new_case(client, "SVC-RATE")
@@ -137,7 +137,11 @@ def test_health_reports_the_fleets_unattended_work(client):
     health = client.get("/health").json()
     assert health["autonomous_sweeps"] >= 1
     assert health["autonomous_cycles"] >= 1
-    assert health["commander_planner"] in ("gemini", "deterministic-fallback")
+    assert health["commander_planner"] in (
+        "google",
+        "openai",
+        "deterministic-fallback",
+    )
     assert health["llm_in_decision_path"] is False
     assert health["kassandra"]["enabled"] is True
     assert health["kassandra"]["affects_forensic_verdict"] is False
@@ -186,7 +190,7 @@ def _force_due(case_id):
 
 
 def test_a_sweep_caps_how_many_cycles_it_runs(client):
-    """Every cycle is a Gemini turn and case creation is unauthenticated on the
+    """Every cycle may be a paid-model turn and case creation is unauthenticated on the
     public endpoint, so without a cap the cost of a wake-up is set by whoever
     created the most cases."""
     from service.app import SWEEP_MAX_CYCLES, _RATE_HITS
@@ -233,7 +237,7 @@ def test_a_flood_of_new_cases_cannot_starve_a_compromised_host(client):
 
 
 def test_creating_a_case_is_rate_limited(client):
-    """A created case is due immediately, so one POST here buys one Gemini turn
+    """A created case is due immediately, so one POST here buys one paid-model turn
     on the next sweep."""
     from service.app import _RATE_HITS, _RATE_MAX
     _RATE_HITS.clear()

@@ -15,7 +15,7 @@ Endpoints:
 Investigation modes (POST /investigate body: {"mode": ...}):
   scripted : run the given hunt groups through the sealed loop, no LLM
              (deterministic, free — the replay/dashboard path)
-  agent    : the ADK+Gemini agent drives the hunt and narrates
+  agent    : the selected ADK model drives the hunt and narrates
 
 State is in-memory per instance unless Firestore is configured. Storage does
 not touch the seal, only where the seal is stored.
@@ -39,7 +39,11 @@ from pydantic import BaseModel, Field
 from agent import autonomy, catalog, principal as principal_mod
 from agent import mission as mem
 from agent.kassandra import KassandraSession, kassandra_posture
-from agent.purple_team_agent import model_id
+from agent.model_provider import (
+    ModelConfigurationError,
+    model_configuration,
+    model_unavailable_message,
+)
 from agent.tools import PurpleTeamSession
 from core.verdict_stream import GENESIS_HASH, verify_stream
 from ml.nominator import SurprisalNominator, events_from_artifacts
@@ -215,14 +219,34 @@ def _misp_posture() -> str:
     return posture()
 
 
+def _model_posture() -> dict[str, object]:
+    """Public, secret-free posture that remains readable when misconfigured."""
+    try:
+        return model_configuration().public()
+    except ModelConfigurationError as exc:
+        return {
+            "provider": "invalid",
+            "model": "unavailable",
+            "qualified_model": "unavailable",
+            "backend": "unavailable",
+            "available": False,
+            "configuration_error": str(exc),
+            "llm_in_decision_path": False,
+        }
+
+
 @app.get("/health")
 def health() -> dict:
+    model = _model_posture()
     return {
         "status": "ok",
         "service": "pancito-red-team-offensive-validation",
         "version": app.version,
-        "model": model_id(),
-        "vertex_ai": os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE",
+        "model": model["model"],
+        "model_provider": model["provider"],
+        "model_backend": model["backend"],
+        "model_available": model["available"],
+        "vertex_ai": model["provider"] == "google" and model["backend"] == "vertex-ai",
         "sealed_verdicts": True,
         "llm_in_decision_path": False,
         "kassandra": _KASSANDRA_POSTURE,
@@ -246,7 +270,7 @@ def health() -> dict:
         "cases_deferred_last_sweep": _SWEEP_STATE["last_deferred"],
         "sweep_cycle_cap": SWEEP_MAX_CYCLES,
         "escalations_raised": _SWEEP_STATE["escalations_total"],
-        "commander_planner": ("gemini" if autonomy.model_reachable()
+        "commander_planner": (model["provider"] if model["available"]
                               else "deterministic-fallback"),
         "fleet_department": autonomy.COMMANDER_DEPARTMENT,
         # Whether a tasking must present a verified identity, or may assert its
@@ -258,9 +282,10 @@ def health() -> dict:
         "tracing": tracing_mode(),
         "narrators": {
             "investigator": {
-                "model": model_id(),
-                "backend": "vertex-ai" if os.environ.get(
-                    "GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE" else "developer-api",
+                "model": model["model"],
+                "provider": model["provider"],
+                "backend": model["backend"],
+                "available": model["available"],
             },
             "baseline_narrator": {"model": NAIVE_MODEL, "backend": "developer-api"},
         },
@@ -368,8 +393,15 @@ async def investigate(req: InvestigateRequest, request: Request) -> dict:
                                 detail="agent mode requires a 'prompt'")
         if not _rate_ok("agent"):
             raise HTTPException(status_code=429,
-                                detail="rate limited — agent runs call Gemini; "
+                                detail="rate limited — agent runs call a paid model; "
                                        "try again in a few seconds")
+        if not autonomy.model_reachable():
+            raise HTTPException(
+                status_code=503,
+                detail=("agent mode is unavailable: "
+                        f"{model_unavailable_message()}. The sealed scripted "
+                        "path does not need a model and is unaffected."),
+            )
         result = await _run_agent(session, req.prompt)
 
     chain = session.verify_chain()
@@ -440,7 +472,7 @@ def _session_for_case(case: dict, scenario: str) -> PurpleTeamSession:
 @app.post("/cases")
 def create_case(req: CaseCreateRequest) -> dict:
     # A created case is due immediately, so on a public endpoint one
-    # unauthenticated POST here buys one Gemini turn on the next sweep. The cap
+    # unauthenticated POST here buys one paid-model turn on the next sweep. The cap
     # in the sweep bounds the cost; this bounds the rate of arrival.
     if not _rate_ok("create_case"):
         raise HTTPException(status_code=429,
@@ -638,17 +670,23 @@ def _gemma_client():
 
 
 def _faithful_narrate(sealed: dict) -> str:
-    """Gemini narrating the SAME sealed verdict, told it is final. Same hash,
-    different model — the verdict does not move."""
+    """The selected model narrates a verdict already sealed by the core."""
     try:
-        client = _gemini_client()
+        config = model_configuration()
+        if not config.available:
+            raise ModelConfigurationError(model_unavailable_message())
         prompt = (
             "Report this SEALED forensic verdict to the analyst in one sentence. "
             "It is final and you must report it exactly, not reinterpret it.\n"
             f"State: {sealed['state']}. Score: {sealed['score']}. "
             f"MITRE: {', '.join(sealed['mitre_techniques']) or 'none'}.")
-        resp = client.models.generate_content(model=model_id(), contents=prompt)
-        return (resp.text or "").strip()
+        if config.provider == "openai":
+            from openai import OpenAI
+            response = OpenAI().responses.create(model=config.model, input=prompt)
+            return (response.output_text or "").strip()
+        response = _gemini_client().models.generate_content(
+            model=config.model, contents=prompt)
+        return (response.text or "").strip()
     except Exception as exc:  # noqa: BLE001
         return f"(faithful narrator unavailable: {exc})"
 
@@ -786,9 +824,10 @@ def injection_validation(request: Request) -> dict:
         "mitre_techniques": entry["mitre_techniques"],
         "entry_hash": entry["entry_hash"],
     }
-    # The SAME sealed verdict narrated by a DIFFERENT model. Two models touch
-    # the words; the seal below is one and the same.
+    # The SAME sealed verdict narrated by the selected faithful provider. Models
+    # touch only words downstream; the seal below is one and the same.
     faithful = _faithful_narrate(sealed)
+    faithful_posture = _model_posture()
 
     return {
         "planted_instruction": planted,
@@ -797,7 +836,8 @@ def injection_validation(request: Request) -> dict:
         "naive_model": NAIVE_MODEL,
         "naive_available": not naive.startswith("(naive narrator unavailable"),
         "faithful_narration": faithful,
-        "faithful_model": model_id(),
+        "faithful_model": faithful_posture["model"],
+        "faithful_provider": faithful_posture["provider"],
         "faithful_available": not faithful.startswith("(faithful narrator unavailable"),
         "guard": {
             "suspicious": guard.suspicious,
@@ -842,7 +882,7 @@ _SWEEP_STATE = {"count": 0, "last_utc": None, "last_swept": 0,
                 "last_skipped": 0, "cycles_total": 0, "escalations_total": 0,
                 "last_deferred": 0}
 
-# How many cycles one wake-up may run. Each cycle is a Gemini turn, and case
+# How many cycles one wake-up may run. Each cycle may be a paid-model turn, and case
 # creation may be unauthenticated, so without a cap the cost of a
 # sweep is set by whoever created the most cases. Cases past the cap are not
 # dropped — they are deferred to the next wake-up, worst first.
@@ -1068,8 +1108,8 @@ async def run_case_cycle(case_id: str, req: CycleRequest,
         raise HTTPException(status_code=404, detail="case not found")
     if not _rate_ok("cycle"):
         raise HTTPException(status_code=429,
-                            detail="rate limited — an agentic cycle calls "
-                                   "Gemini; try again in a few seconds")
+                            detail="rate limited — an agentic cycle calls a "
+                                   "paid model; try again in a few seconds")
     principal = _principal_for(request, req.department)
     try:
         result = await _run_cycle_on_case(
@@ -1193,7 +1233,7 @@ class ConsultRequest(BaseModel):
 async def consult(req: ConsultRequest) -> dict:
     """One turn with the mentor agent. Pass the returned session_id back on the
     next call to keep the conversation (the junior examiner's follow-ups)."""
-    # Public and paid: each turn is a Gemini call. Rate-limit like every other
+    # Public and paid: each turn is a model call. Rate-limit like every other
     # model-touching route so a caller cannot burn the quota (red-team R2-1).
     if not _rate_ok("consult"):
         raise HTTPException(status_code=429, detail="rate limited")
@@ -1210,10 +1250,9 @@ async def consult(req: ConsultRequest) -> dict:
     if not autonomy.model_reachable():
         raise HTTPException(
             status_code=503,
-            detail=("consult is unavailable: no model is reachable. Set "
-                    "GEMINI_API_KEY or GOOGLE_API_KEY (or GOOGLE_CLOUD_PROJECT "
-                    "with GOOGLE_GENAI_USE_VERTEXAI=TRUE). The sealed verdict "
-                    "path does not need one and is unaffected."),
+            detail=("consult is unavailable: "
+                    f"{model_unavailable_message()}. The sealed verdict path "
+                    "does not need a model and is unaffected."),
         )
     from google.genai import types
     runner = _get_consult_runner()

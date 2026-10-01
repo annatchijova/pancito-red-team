@@ -8,7 +8,7 @@ live operation. That is the wrong thing to discover at 3am.
 
 So the loop runs here against a model that is scripted rather than absent: a
 BaseLlm that reads the real tool results out of the conversation and plays a
-fixed investigative plan. What stays untested without credentials is Gemini's
+fixed investigative plan. What stays untested without credentials is a provider's
 judgement — not the machinery it drives.
 
 The second and third cases are the adversarial ones: a commander that escalates
@@ -130,7 +130,7 @@ def _run(session, case, plan, **kw):
 def test_the_adk_loop_runs_the_whole_investigation():
     """The load-bearing one: this is the production path, not the fallback."""
     result = _run(_session(), _case(), FULL_INVESTIGATION)
-    assert result["planner"] == "gemini", result["planner_error"]
+    assert result["planner"] == "injected-model", result["planner_error"]
     assert result["planner_error"] is None
 
     actions = [(e["role"], e["action"]) for e in result["fleet_log"]]
@@ -185,7 +185,7 @@ def test_an_escalation_resting_on_nothing_says_so():
     incident; what it cannot do is appear supported."""
     case = _case("LOOP-NOTHING")
     result = _run(_session(INSUFFICIENT, "LOOP-NOTHING"), case, ESCALATE_ON_NOTHING)
-    assert result["planner"] == "gemini"
+    assert result["planner"] == "injected-model"
     assert not result["verdicts"]
 
     escalation = case["mission"]["escalation"]
@@ -236,7 +236,7 @@ def test_the_catalog_still_refuses_the_soc_on_the_agent_path():
     case = _case("LOOP-SOC")
     result = _run(_session(case_id="LOOP-SOC"), case, FULL_INVESTIGATION,
                   department="soc")
-    assert result["planner"] == "gemini"
+    assert result["planner"] == "injected-model"
     assert any(e["action"] == "refused_by_catalog" for e in result["fleet_log"])
     assert not result["verdicts"]
 

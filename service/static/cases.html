@@ -199,7 +199,7 @@ let SELECTED_SCENARIO="benign";
 
 async function investigate(id,mode,scenario){
   if(scenario) SELECTED_SCENARIO=scenario;
-  const sp=$("dspin"); if(sp) sp.textContent=mode==="agent"?"agent investigating (Gemini)…":"sealing…";
+  const sp=$("dspin"); if(sp) sp.textContent=mode==="agent"?"agent investigating (selected model)…":"sealing…";
   document.querySelectorAll(".actions button").forEach(b=>b.disabled=true);
   try{
     await fetch("/cases/"+encodeURIComponent(id)+"/investigate",{method:"POST",headers:{"Content-Type":"application/json"},

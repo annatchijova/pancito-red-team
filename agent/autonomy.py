@@ -387,7 +387,7 @@ def build_commander(session: PurpleTeamSession, case: dict, mission: dict, *,
                     log_sink: Optional[list] = None, model=None):
     """Build the commander as a real ADK agent, gated by the sealed registry."""
     from google.adk.agents import Agent
-    from agent.purple_team_agent import model_id
+    from agent.model_provider import model_for_adk
     from agent.registry import REGISTRY_VERSION, require_approved
 
     tools = commander_tools(session, case, mission, department=department,
@@ -396,7 +396,7 @@ def build_commander(session: PurpleTeamSession, case: dict, mission: dict, *,
                      [t.__name__ for t in tools])
     return Agent(
         name="vigia_fleet_commander",
-        model=model or model_id(),
+        model=model if model is not None else model_for_adk(),
         description=("annaconda fleet · commander: works a case autonomously, "
                      "tasking the specialists and carrying the investigation's "
                      "memory across cycles."),
@@ -406,13 +406,9 @@ def build_commander(session: PurpleTeamSession, case: dict, mission: dict, *,
 
 
 def model_reachable() -> bool:
-    """Whether an agent turn can even be attempted. Checked rather than assumed
-    so a cron on a machine with no credentials degrades instead of erroring
-    every hour."""
-    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() == "TRUE":
-        return bool(os.environ.get("GOOGLE_CLOUD_PROJECT"))
-    return bool(os.environ.get("GEMINI_API_KEY")
-                or os.environ.get("GOOGLE_API_KEY"))
+    """Whether the explicitly selected unsealed model can be attempted."""
+    from agent.model_provider import model_reachable as provider_reachable
+    return provider_reachable()
 
 
 def plan_deterministically(session: PurpleTeamSession, case: dict,
@@ -655,7 +651,11 @@ async def run_cycle(session: PurpleTeamSession, case: dict, *,
                 narration = await _run_commander_turn(
                     session, case, mission, department=department,
                     log_sink=events, model=model)
-                planner = "gemini"
+                if model is not None:
+                    planner = "injected-model"
+                else:
+                    from agent.model_provider import model_provider
+                    planner = model_provider()
             except Exception as exc:  # noqa: BLE001
                 # An unattended cycle must not die because the model was
                 # unreachable, rate limited, or refused. Fall back, and record
@@ -668,7 +668,7 @@ async def run_cycle(session: PurpleTeamSession, case: dict, *,
                                "action": "agent_turn_failed",
                                "detail": str(exc)})
 
-        if planner != "gemini":
+        if planner == "deterministic-fallback":
             plan_deterministically(session, case, mission,
                                    department=department, log_sink=events)
 
@@ -684,7 +684,7 @@ async def run_cycle(session: PurpleTeamSession, case: dict, *,
         # The condition is "is this case still due?", not "is the plan absent?".
         # A cycle that left the previous, already past-due plan untouched used
         # to slip through — and since is_due stays True, every wake-up ran a
-        # full Gemini cycle on that case, for as long as it existed.
+        # full paid-model cycle on that case, for as long as it existed.
         if (not mission.get("standing_down")
                 and (mission.get("next_action") is None or mem.is_due(mission))):
             default_hours = (COMPROMISED_MAX_INTERVAL_H if compromised else

@@ -1,25 +1,18 @@
 """ADK Agent wiring for the annaconda purple-team investigator.
 
-Builds a Google ADK Agent (Gemini) whose tools are a PurpleTeamSession's
+Builds a Google ADK Agent whose tools are a PurpleTeamSession's
 bound methods. The agent drives the hunt loop and explains sealed results to
 the examiner; the deterministic core, reached only through the adjudicate
 tool, produces the verdict. Swapping the model changes the wording, never the
 verdict — which is exactly the architecture test.
 
-Model: env annaconda_GEMINI_MODEL, default gemini-3.5-flash.
+The unsealed narration provider is selected in ``agent.model_provider``.
 """
 
 from __future__ import annotations
 
-import os
-
+from agent.model_provider import model_for_adk, model_id
 from agent.tools import PurpleTeamSession
-
-DEFAULT_MODEL = "gemini-3.5-flash"
-
-
-def model_id() -> str:
-    return os.environ.get("annaconda_GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
 
 INSTRUCTION = """\
@@ -77,7 +70,7 @@ def build_agent(session: PurpleTeamSession, *, model: str | None = None):
                      [t.__name__ for t in tools])
     return Agent(
         name="vigia_purple_team",
-        model=model or model_id(),
+        model=model if model is not None else model_for_adk(),
         description=(
             "Autonomous purple-team forensic investigator: drives live "
             "Velociraptor hunts and explains sealed, deterministic verdicts."
