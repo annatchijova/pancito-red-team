@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -145,6 +146,48 @@ def test_concurrent_evidence_blocks_receive_unique_ordered_heartbeats():
     assert sorted(item.heartbeat_counter for item in envelopes) == list(range(1, 33))
     assert len({item.heartbeat_hash for item in envelopes}) == 32
     assert session.verify_heartbeat() is True
+
+
+def test_concurrent_heartbeat_and_audit_events_keep_the_same_order(monkeypatch):
+    session = _session()
+    first_audit_waiting = threading.Event()
+    release_first_audit = threading.Event()
+    second_audit_reached = threading.Event()
+    second_worker_started = threading.Event()
+    original_append = session._append_audit
+
+    def delay_first_audit(event, detail):
+        if event == "KASSANDRA_EVIDENCE_WRAPPED":
+            if detail["heartbeat_counter"] == 1:
+                first_audit_waiting.set()
+                assert release_first_audit.wait(timeout=3)
+            elif detail["heartbeat_counter"] == 2:
+                second_audit_reached.set()
+        original_append(event, detail)
+
+    monkeypatch.setattr(session, "_append_audit", delay_first_audit)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(session.wrap_evidence, "first", source="test")
+        assert first_audit_waiting.wait(timeout=1)
+
+        def second_wrap():
+            second_worker_started.set()
+            return session.wrap_evidence("second", source="test")
+
+        second = pool.submit(second_wrap)
+        assert second_worker_started.wait(timeout=1)
+        second_audited_before_first = second_audit_reached.wait(timeout=0.5)
+        release_first_audit.set()
+        first.result(timeout=2)
+        second.result(timeout=2)
+
+    assert second_audited_before_first is False
+    evidence_counters = [
+        item["detail"]["heartbeat_counter"]
+        for item in session.audit_entries()
+        if item["event"] == "KASSANDRA_EVIDENCE_WRAPPED"
+    ]
+    assert evidence_counters == [1, 2]
 
 
 def test_missing_salt_is_honestly_degraded_by_default(monkeypatch):

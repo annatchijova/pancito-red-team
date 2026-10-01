@@ -240,14 +240,20 @@ class KassandraSession:
 
         evidence_hash = hashlib.sha256(encoded).hexdigest()
         with self._heartbeat_lock:
-            counter = len(self._heartbeat_records) + 1
-            heartbeat_hash = hashlib.sha256(
-                bytes.fromhex(self._heartbeat_hash)
-                + counter.to_bytes(8, "big")
-                + bytes.fromhex(evidence_hash)
-            ).hexdigest()
-            self._heartbeat_hash = heartbeat_hash
-            self._heartbeat_records.append((counter, evidence_hash, heartbeat_hash))
+            return self._wrap_evidence_locked(evidence, source, evidence_hash)
+
+    def _wrap_evidence_locked(
+        self, evidence: str, source: str, evidence_hash: str
+    ) -> KassandraEnvelope:
+        """Record heartbeat and matching audit event under one ordering lock."""
+        counter = len(self._heartbeat_records) + 1
+        heartbeat_hash = hashlib.sha256(
+            bytes.fromhex(self._heartbeat_hash)
+            + counter.to_bytes(8, "big")
+            + bytes.fromhex(evidence_hash)
+        ).hexdigest()
+        self._heartbeat_hash = heartbeat_hash
+        self._heartbeat_records.append((counter, evidence_hash, heartbeat_hash))
 
         normalized = unicodedata.normalize("NFKC", evidence)
         observed = self.tripwire_id in normalized

@@ -9,6 +9,7 @@ audit start
 **Fifth-round base:** `main` at `ef228b6`
 **Sixth-round base:** `main` at `027a052`
 **Seventh-round base:** `main` at `cd6f016`
+**Eighth-round base:** `main` at `fecc05f`
 **Method:** adversarial code review, authorization-surface mapping, invariant
 hunting, falsifiable local tests, and provenance-preserving reporting
 **Target boundary:** repository code and local test doubles only. No external
@@ -16,13 +17,13 @@ target, production service, credential, or third-party repository was probed.
 
 ## Executive result
 
-Nine findings have now been tracked across seven audit rounds.
+Ten findings have now been tracked across eight audit rounds.
 The first four are remediated in commit `a3b1c4f`; RT-2026-05 is remediated in
 `971ce05`, RT-2026-06 in `ef228b6`, RT-2026-07 in `027a052`, RT-2026-08 in
-`cd6f016`, and RT-2026-09 in the current working tree. The async-export
-experiment is committed but only exercises controlled loopback labs; it is not
-evidence about a real API. The SIFT result remains bounded to synthetic
-producer-shaped facts.
+`cd6f016`, RT-2026-09 in `fecc05f`, and RT-2026-10 in the current working tree.
+The async-export experiment is committed but only exercises controlled
+loopback labs; it is not evidence about a real API. The SIFT result remains
+bounded to synthetic producer-shaped facts.
 
 | ID | Priority | Finding | Evidence at discovery | Current status |
 |---|---|---|---|---|
@@ -34,7 +35,8 @@ producer-shaped facts.
 | RT-2026-06 | P2 | A fresh `ReplayCampaign` object reset its in-memory run counter and reused `run-0001` for the same grant/output namespace. It rewrote the prior window artifact, then failed later when the stale verdict stream rejected the duplicate sequence. | Local replay induction with the bundled fixture and memory backend: first campaign succeeded; a second campaign with the same authorization ID and output root reached `append_entry` and raised `StreamError`. No external target or persistent case store was used. | Remediated in `ef228b6` by atomically creating each run directory with `exist_ok=False`, refusing collisions before creating `PurpleTeamSession`. Regression confirms the second session is never constructed. This does not establish a durable/global `max_runs` quota across processes or distinct output roots. |
 | RT-2026-07 | P3 | The documented `load_engagement` file boundary followed a final symlink and could block indefinitely on a FIFO: it statted the path, then used `Path.read_bytes()`, which blocks opening a FIFO before the post-read size check. The shared bounded reader had the same FIFO-open ordering. | Red-first local regressions: a symlink to a valid manifest was accepted; a subprocess calling `load_engagement` on a FIFO timed out after 3 seconds. No service/remote interface was involved. | Remediated in `027a052` by routing manifests through the shared regular-file reader, preserving the final path component so no-follow validation applies, and opening with `O_NONBLOCK` before `fstat`. Tests require symlink and FIFO rejection; FIFO test runs in a bounded subprocess. |
 | RT-2026-08 | P2 | `authorization_id` / `engagement_id` accepted the exact path segments `.` and `..`. The executor joins the authorization ID into its output path, so `..` can place a replay run directory outside the configured output root. | Red-first tests confirmed both the direct grant and manifest parser accepted both values. Path composition in `ReplayCampaign.run` yields `out_dir/../run-0001`; no directory or file was created during induction. | Remediated in `cd6f016` by rejecting `.` and `..` in both grant construction and manifest parsing before path composition. Regression covers both entry points. |
-| RT-2026-09 | P2 | Kassandra's audit-chain verifier accepted any valid prefix, including an empty chain, as complete. A caller could remove the suffix and still receive `True`, despite the chain being intended to expose log alteration/reordering. | Red-first test on `cd6f016`: after a normal response, `verify_audit_chain(entries[:-1])` returned `True`. This is a same-process session check; no persistent or external log store was involved. | Remediated in the current patch by requiring both the exact live-session entry count and its independently held head HMAC to match. Regression rejects suffix truncation and empty input. This does not provide a durable external anchor across process loss. |
+| RT-2026-09 | P2 | Kassandra's audit-chain verifier accepted any valid prefix, including an empty chain, as complete. A caller could remove the suffix and still receive `True`, despite the chain being intended to expose log alteration/reordering. | Red-first test on `cd6f016`: after a normal response, `verify_audit_chain(entries[:-1])` returned `True`. This is a same-process session check; no persistent or external log store was involved. | Remediated in `fecc05f` by requiring both the exact live-session entry count and its independently held head HMAC to match. Regression rejects suffix truncation and empty input. This does not provide a durable external anchor across process loss. |
+| RT-2026-10 | P2 | Concurrent `wrap_evidence` calls could allocate heartbeat counters in order, then append their HMAC audit events in the opposite order because the heartbeat lock ended before audit append. The two records therefore represented inconsistent event ordering. | Deterministic forced interleaving: pause counter 1 immediately before audit append, allow counter 2 to append, then resume counter 1. The red-first test observed audit counters `[2, 1]` on `fecc05f` while the heartbeat chain remained `[1, 2]`. | Remediated in the current patch by keeping the heartbeat ordering lock across counter/hash mutation, audit append, and envelope return. A synchronization-controlled test requires audit counters `[1, 2]`. |
 
 Priority labels are ordinal triage within this audit, not CVSS scores. P1
 reflects the possibility of tests using persistent operator data; P2 findings
@@ -53,6 +55,8 @@ not imply remote reachability. RT-2026-08 is a constrained local output-path
 escape through an accepted dot-segment identifier; no arbitrary path write was
 established. RT-2026-09 concerns completeness relative to the live Kassandra
 session; persistent anchoring across restarts remains unimplemented.
+RT-2026-10 concerns consistency of two in-memory per-session event sequences;
+it does not establish a cross-process ordering guarantee.
 
 ## Threat model and trust boundaries
 
@@ -141,6 +145,11 @@ this induction.
 For RT-2026-09, the red-first verifier test showed that a valid prefix of the
 session audit passed. The verifier now compares both supplied count and final
 HMAC with the live session's retained audit state; focused Kassandra tests pass.
+
+For RT-2026-10, the regression forces the first evidence thread to pause before
+its audit append while a second thread runs. Before the fix, audit event order
+was `[2, 1]`; after serializing the full evidence-recording operation under the
+heartbeat lock, audit order matches heartbeat order.
 
 ## Falsified vectors and untested surface
 
