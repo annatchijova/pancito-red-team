@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PANCITO-RED-TEAM cleanup report — 2026-10-01</title>
+  <style>
+    body{font:15px/1.5 system-ui,sans-serif;max-width:1120px;margin:auto;padding:32px;color:#17202a}
+    h1,h2{line-height:1.2} code{background:#eef1f4;padding:.1em .3em;border-radius:3px}
+    table{border-collapse:collapse;width:100%;margin:1rem 0 2rem}th,td{border:1px solid #ccd3da;padding:.55rem;text-align:left;vertical-align:top}
+    th{background:#eef1f4}.controls button{margin:0 .4rem .5rem 0;padding:.4rem .7rem}
+    .dead{color:#8b1e1e}.alive{color:#145a32}.fossil{color:#7d4e00}.warning{border-left:4px solid #c97900;padding:.7rem 1rem;background:#fff7e6}
+  </style>
+</head>
+<body>
+<h1>PANCITO-RED-TEAM cleanup report</h1>
+<p><strong>Date:</strong> 2026-10-01 · <strong>Baseline:</strong> commit <code>3cf5476</code></p>
+
+<h2>Outcome</h2>
+<p>The investigation scanned 314 tracked files and 158 Python files (113 production
+modules and 45 test/helper modules). It removed 110 tracked paths from the inherited
+presentation, contest, sample-data, and confirmed-unreferenced clusters. Four Python
+modules were retired; the useful live Velociraptor script was renamed instead of
+discarded. The current offensive replay was executed during the investigation and
+returned <code>DETECTED_AS_EXPECTED</code>.</p>
+
+<p class="warning"><strong>Restoration:</strong> the ignored file
+<code>.cleanup-archive/pre-cleanup-3cf5476.tar.gz</code> is a complete snapshot of
+the baseline commit. SHA-256:
+<code>4c24b160815bcef8835e1610c58b47187f44fd294412a13201f1897387488a95</code>.
+Git history is also authoritative: <code>git restore --source=3cf5476 -- PATH</code>.
+The archive directory is ignored; the report itself is versioned.</p>
+
+<h2>Population classification</h2>
+<table>
+  <thead><tr><th>Population</th><th>Classification</th><th>Evidence / action</th></tr></thead>
+  <tbody>
+    <tr><td><code>offensive/</code> (11 after branch integration)</td><td class="alive">CONNECTED_ALIVE</td><td>Primary PANCITO engagement, catalogue, replay, OpenAPI triage/handoff, loopback BOLA proof/CLI, local-artifact boundary, and Blue-observation path. Retained.</td></tr>
+    <tr><td>Replay decision closure</td><td class="alive">CONNECTED_ALIVE</td><td>A real replay loads <code>agent.tools</code>, <code>vigia_scorer</code>, <code>pipeline</code>, relevant <code>core</code>, <code>tools.caie</code>, and verdict modules. Retained.</td></tr>
+    <tr><td><code>service/</code> + agent fleet</td><td class="alive">CONNECTED_ALIVE / PRODUCT-BOUNDARY DEBT</td><td>Routes, stores, Kassandra, fleet, and tests still call one another. Not dead, so not bulk-deleted.</td></tr>
+    <tr><td>Standalone VIGÍA/SIFT chain</td><td class="fossil">CONNECTED LEGACY</td><td>Internally connected through <code>vigia_agent.py</code> and package metadata, but outside the current replay entrypoint. A product decision is required before removal.</td></tr>
+    <tr><td>Pitch, contest, screenshots, sample feed</td><td class="dead">DEAD_WEIGHT</td><td>No runtime value for PANCITO; removed as coupled clusters.</td></tr>
+    <tr><td>Four unreferenced Python modules</td><td class="dead">DEAD_WEIGHT</td><td>No production caller/config entry; associated test-list entry removed where necessary.</td></tr>
+  </tbody>
+</table>
+
+<h2>Removed material</h2>
+<div class="controls">
+  <button onclick="filterRows('all')">All</button>
+  <button onclick="filterRows('promotion')">Promotion</button>
+  <button onclick="filterRows('docs')">Docs</button>
+  <button onclick="filterRows('code')">Code</button>
+  <button onclick="filterRows('data')">Data</button>
+</div>
+<table id="removed">
+  <thead><tr><th>Class</th><th>Paths / count</th><th>Why removed</th><th>Deletion test</th></tr></thead>
+  <tbody>
+    <tr data-kind="promotion"><td>DEAD_WEIGHT</td><td><code>service/static/deck.html</code> + 59 slides</td><td>Pitch-only viewer and assets; route and navigation links removed together.</td><td>No service test or operational API depends on the deck.</td></tr>
+    <tr data-kind="promotion"><td>DEAD_WEIGHT</td><td><code>visual/</code> (14 images)</td><td>Inherited screenshots and cloud proof, referenced only by the old README.</td><td>README was replaced; no runtime caller.</td></tr>
+    <tr data-kind="promotion"><td>DEAD_WEIGHT</td><td><code>DEMO_SCRIPT.md</code>, <code>PROJECT_BRIEF.md</code>, <code>PROPOSALS.md</code></td><td>Contest recording script, obsolete planning brief, and annaconda roadmap.</td><td>Zero code/config callers; replacement README states current scope.</td></tr>
+    <tr data-kind="promotion"><td>DEAD_WEIGHT</td><td><code>DEPLOY.md</code>, <code>service/static/architecture.html</code>, <code>scripts/render_architecture.sh</code></td><td>Inherited deployment/project identifiers and promotional architecture view. The renderer's only output was deleted.</td><td>No deployment is claimed; stale routes and links were removed.</td></tr>
+    <tr data-kind="data"><td>DEAD_WEIGHT</td><td><code>demo/misp_demo_feed.json</code></td><td>Artificial showcase intelligence feed.</td><td>No default runtime loader; only the removed deploy guide enabled it.</td></tr>
+    <tr data-kind="docs"><td>USER-DIRECTED</td><td><code>docs/</code> contents (25 tracked files)</td><td>User explicitly required the directory to remain empty; only <code>.gitkeep</code> remains so Git preserves the directory.</td><td>Some files had technical/provenance value; this loss is recorded and fully archived rather than misclassified as dead.</td></tr>
+    <tr data-kind="code"><td>DEAD_WEIGHT</td><td><code>scripts_lib/agent_smoke.py</code></td><td>Manual inherited agent smoke runner.</td><td>Zero imports, callers, config entries, or tests.</td></tr>
+    <tr data-kind="code"><td>DEAD_WEIGHT</td><td><code>security/vigia_seguridad.py</code></td><td>Obsolete alternate security implementation.</td><td>Zero repository references or tests; canonical security modules remain.</td></tr>
+    <tr data-kind="code"><td>DEAD_WEIGHT</td><td><code>sift/sans_phase.py</code></td><td>Isolated legacy phase module.</td><td>Only reference was its own inline-suite wrapper; that parameter was removed.</td></tr>
+    <tr data-kind="code"><td>RENAMED</td><td><code>scripts_lib/live_velociraptor_demo.py</code> → <code>validate_live_velociraptor.py</code></td><td>The capability is useful; contest/showcase naming was not.</td><td>Preserved live collection-to-seal validation and updated references.</td></tr>
+  </tbody>
+</table>
+
+<h2>Demo/showcase behavior removed or converted</h2>
+<ul>
+  <li>Removed <code>/demo/seed</code>, reset buttons, seeded <code>DEMO-*</code> cases, the case-store <code>demo</code> flag, and the autonomous-sweep exemption.</li>
+  <li>Renamed <code>/injection-demo</code> to <code>/injection-validation</code>, including UI and tests.</li>
+  <li>Renamed fixture/default identifiers from <code>DEMO-*</code> to explicit replay/validation identifiers.</li>
+  <li>Renamed <code>VIGIA_DEMO_EVIDENCE</code> to <code>VIGIA_REPLAY_EVIDENCE</code>.</li>
+  <li>Removed contest, judge, pitch, and public-showcase claims from code and active documentation.</li>
+</ul>
+
+<h2>Important material retained</h2>
+<ul>
+  <li><code>tests/fixtures/attack/</code>: runtime input for the only current offensive scenario.</li>
+  <li><code>pipeline/</code> and its scoring dependencies: dynamically loaded by a real replay.</li>
+  <li><code>service/case_store.py</code> and <code>service/chain_store.py</code>: connected custody/persistence code with broad tests.</li>
+  <li>Kassandra and hallucination controls: security mechanisms, not contest artifacts.</li>
+  <li>Licenses and <code>ATTRIBUTIONS.md</code>: legal provenance was normalized, never discarded.</li>
+</ul>
+
+<h2>Deferred findings — not silently deleted</h2>
+<ol>
+  <li><strong>Packaging defect:</strong> <code>pyproject.toml</code> omits <code>agent</code>, although <code>offensive.replay</code> imports <code>agent.tools</code>. The wheel is therefore structurally incomplete.</li>
+  <li><strong>Two product surfaces:</strong> package metadata describes a library while Docker starts the inherited Cloud service. Choose and test a boundary before deleting either connected cluster.</li>
+  <li><strong>Replay presented as service:</strong> <code>service.app</code> always uses <code>MockTransport</code> with fixtures, fixed host metadata, and fixed time bases. It is not a live offensive transport.</li>
+  <li><strong>Potential duplicate decision engine:</strong> <code>pipeline.pipeline</code> looks like legacy alternate scoring, but import-time coupling in <code>pipeline.vigia_integration_bridge</code> makes it load-bearing today. Extract schema normalization before reassessing deletion.</li>
+  <li><strong>Historical comments:</strong> inherited core modules still cite design documents that are now only available in the restoration archive because <code>docs/</code> was explicitly emptied.</li>
+</ol>
+
+<h2>Verification</h2>
+<ul>
+  <li>23 offensive-boundary and determinism tests passed.</li>
+  <li>25 case-store and chain-segmentation tests passed.</li>
+  <li>Three retained inline module suites passed.</li>
+  <li>24 threat-intel, temporal-causality, and commander-loop tests passed (one existing Google ADK experimental-feature warning).</li>
+  <li>A direct authorized <code>ReplayCampaign</code> completed and returned <code>DETECTED_AS_EXPECTED</code>.</li>
+  <li>The renamed injection-validation function and route were exercised directly; the sealed result was <code>MALICE_HIGH</code> and the removed routes were absent.</li>
+  <li>All remaining Python files passed <code>compileall</code> after cleanup.</li>
+  <li>The FastAPI <code>TestClient</code> integration test is blocked in this environment during <code>TestClient.__enter__</code>, before the request is issued. A faulthandler trace confirmed the wait is in AnyIO portal startup; the direct route check above passed.</li>
+</ul>
+
+<h2>Branch integration after cleanup</h2>
+<ul>
+  <li><code>c21ce65</code>: bounded loopback BOLA differential proof; 12 tests passed with loopback socket access.</li>
+  <li><code>6feb4f0</code>: provenance-preserving passive OpenAPI triage; 8 tests passed.</li>
+  <li><code>0edd7ca</code>: loss-resistant candidate handoff from passive triage into BOLA.</li>
+  <li><code>3e7e66a</code>: secret-safe BOLA manifest runner and CLI.</li>
+  <li><code>52354c0</code>: provenance-safe OpenAPI triage CLI and bounded local-file reader.</li>
+  <li><code>1549722</code>: marked BOLA exercise plus independent Blue visibility/detection evaluation.</li>
+  <li>These commits were descendants of the same baseline and did not overlap the pending cleanup; integration was forward-only.</li>
+  <li>The final offensive, CLI, handoff, Blue-observation, and determinism verification passed 78 tests.</li>
+</ul>
+
+<script>
+function filterRows(kind){
+  document.querySelectorAll('#removed tbody tr').forEach(function(row){
+    row.hidden = kind !== 'all' && row.dataset.kind !== kind;
+  });
+}
+</script>
+</body>
+</html>

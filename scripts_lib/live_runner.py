@@ -7,7 +7,7 @@ verdict-stream entry chained to the previous one, and persists both:
     <out_dir>/windows/window-<seq>.json   (the sealed evidence windows)
     <out_dir>/stream.jsonl                (the hash-chained verdict stream)
 
-Recorded windows are simultaneously the demo fallback and the determinism
+Recorded windows are simultaneously the replay fallback and the determinism
 proof: ``replay`` re-scores them from disk and asserts every seal comes out
 bit-for-bit identical to the recorded stream.
 
@@ -70,7 +70,7 @@ def run_capture(transport, *, case_id: str, host: dict, examiner_id: str,
 
     With ``time_base`` set, window k spans
     [base + k*interval, base + (k+1)*interval) and the clock is never read
-    (deterministic mock/demo capture). Without it, live wall time is
+    (deterministic fixture capture). Without it, live wall time is
     recorded — and a real wait of ``interval_s`` happens between cycles.
     Returns the list of sealed stream entries.
     """

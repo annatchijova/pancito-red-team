@@ -591,7 +591,7 @@ class BundleBuilder:
 
 
 # ---------------------------------------------------------------------------
-# build_bundle — convenience wrapper para demo runner y test suite
+# build_bundle — convenience wrapper para replay runner y test suite
 #
 # Construye un ForensicBundle desde el resultado de _vigia_score() y lo sella
 # con BundleBuilder.seal(). Sin dependencia de VigiaPipeline.

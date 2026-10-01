@@ -4,7 +4,7 @@ Everything else about the fleet can be tested through the deterministic
 planner, which leaves the part that actually runs in production — ADK building
 the tool declarations, dispatching the model's function calls, feeding the
 results back, and the narration coming out the far end — exercised only by the
-live demo. That is the wrong thing to discover at 3am.
+live operation. That is the wrong thing to discover at 3am.
 
 So the loop runs here against a model that is scripted rather than absent: a
 BaseLlm that reads the real tool results out of the conversation and plays a

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>annaconda — Live Purple Team</title>
+<title>PANCITO-RED-TEAM — Validation Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -103,8 +103,8 @@
   .nlist .det { font-family: var(--mono); font-size: .68rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
   .nlist .rsn { font-size: .88rem; color: var(--ink); }
 
-  .injectdemo { padding: 1.3rem clamp(1.3rem,4vw,2.4rem) 1.6rem; border-top: 1px solid var(--line); background: var(--escalate-wash); }
-  .injectdemo .fl { color: var(--escalate); }
+  .injectvalidation { padding: 1.3rem clamp(1.3rem,4vw,2.4rem) 1.6rem; border-top: 1px solid var(--line); background: var(--escalate-wash); }
+  .injectvalidation .fl { color: var(--escalate); }
   .inj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   @media (max-width: 720px) { .inj-grid { grid-template-columns: 1fr; } }
   .inj-block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 1rem 1.15rem; }
@@ -124,8 +124,8 @@
   .inj-inv { margin: 1.2rem 0 0; font-size: .92rem; color: var(--ink); max-width: 70ch; border-top: 1px solid var(--line); padding-top: 1rem; }
   .inj-inv b { color: var(--escalate); }
 
-  .fleetdemo { padding: 1.3rem clamp(1.3rem,4vw,2.4rem) 1.6rem; border-top: 1px solid var(--line); background: var(--cyan-wash); }
-  .fleetdemo .fl { color: var(--cyan-deep); }
+  .fleetvalidation { padding: 1.3rem clamp(1.3rem,4vw,2.4rem) 1.6rem; border-top: 1px solid var(--line); background: var(--cyan-wash); }
+  .fleetvalidation .fl { color: var(--cyan-deep); }
   .roles { display: grid; grid-template-columns: repeat(2,1fr); gap: .8rem; margin-bottom: 1.3rem; }
   @media (max-width: 640px) { .roles { grid-template-columns: 1fr; } }
   .role { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .8rem 1rem; }
@@ -150,15 +150,13 @@
 </head>
 <body class="grid-bg">
   <nav class="nav"><div class="nav-in">
-    <a class="brand" href="/">annaconda<span class="dot">.</span></a>
+    <a class="brand" href="/">PANCITO<span class="dot">.</span></a>
     <div class="row">
       <div class="nav-links">
         <a href="/console">Case queue</a>
         <a href="/fleet-console">Fleet</a>
         <a href="/exhibit">Exhibit</a>
         <a href="/consult">Mentor</a>
-        <a href="/architecture">Architecture</a>
-        <a href="/deck">Deck</a>
       </div>
       <button class="theme" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
     </div>
@@ -185,7 +183,7 @@
 
     <div class="controls">
       <label class="field" for="caseId">Case</label>
-      <input id="caseId" value="DEMO-001" spellcheck="false">
+      <input id="caseId" value="VALIDATION-001" spellcheck="false">
       <button class="btn primary" id="runBtn">Run sealed investigation</button>
       <button class="btn danger" id="attackBtn">Run attack scenario</button>
       <button class="btn inject" id="injectBtn">Prompt-injection attack</button>
@@ -224,7 +222,7 @@
       <ol class="nlist" id="nlist"></ol>
     </section>
 
-    <section class="injectdemo" id="injectDemo" hidden>
+    <section class="injectvalidation" id="injectValidation" hidden>
       <p class="fl">Attacker-controlled evidence · the genuine threat of an LLM in DFIR</p>
       <div class="inj-grid">
         <div class="inj-block"><h4>1 · The attacker wrote this into the telemetry</h4><div class="inj-planted" id="injPlanted"></div></div>
@@ -235,7 +233,7 @@
       <p class="inj-inv" id="injInv"></p>
     </section>
 
-    <section class="fleetdemo" id="fleetDemo" hidden>
+    <section class="fleetvalidation" id="fleetValidation" hidden>
       <p class="fl">Specialized fleet · strictly disjoint tool contracts, one sealed chain</p>
       <div class="roles" id="fleetRoles"></div>
       <ol class="flog" id="fleetLog"></ol>
@@ -264,7 +262,7 @@ async function health(){
 async function investigate(mode, scenario){
   scenario=scenario||STATE.scenario||"benign";
   STATE.scenario=scenario;
-  const caseId=$("caseId").value.trim()||"DEMO-001";
+  const caseId=$("caseId").value.trim()||"VALIDATION-001";
   $("mCase").textContent=caseId;
   $("mScenario").textContent=scenario==="attack"?"compromised":"benign";
   $("mScenario").style.color=scenario==="attack"?"var(--malice)":"var(--benign)";
@@ -371,15 +369,15 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 $("runBtn").onclick=()=>investigate("scripted","benign");
 $("attackBtn").onclick=()=>investigate("scripted","attack");
-$("injectBtn").onclick=injectionDemo;
-$("fleetBtn").onclick=fleetDemo;
+$("injectBtn").onclick=injectionValidation;
+$("fleetBtn").onclick=fleetValidation;
 $("agentBtn").onclick=()=>investigate("agent");
 
-async function fleetDemo(){
+async function fleetValidation(){
   setBusy(true,"dispatching the fleet…"); $("fleetBtn").disabled=true;
   try{
     const r=await (await fetch("/fleet-investigate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scenario:"attack"})})).json();
-    $("bodyPanel").hidden=true; $("agentLog").hidden=true; $("mlTriage").hidden=true; $("injectDemo").hidden=true;
+    $("bodyPanel").hidden=true; $("agentLog").hidden=true; $("mlTriage").hidden=true; $("injectValidation").hidden=true;
     $("timeline").innerHTML=""; $("emptyNote").hidden=true;
     $("fleetRoles").innerHTML=Object.keys(r.roles).map(name=>
       '<div class="role"><div class="rn">'+name+'</div><div class="rd">'+r.roles[name]+'</div>'
@@ -391,18 +389,18 @@ async function fleetDemo(){
       return '<li><span class="who">'+e.role+'</span><span class="act">'+e.action+'</span>'
         +'<span class="res '+cls+'">'+res+(tt?' · '+tt:'')+'</span></li>';
     }).join("");
-    $("fleetDemo").hidden=false;
+    $("fleetValidation").hidden=false;
     $("replayStatus").innerHTML='Fleet sealed · <span class="'+((r.worst_verdict||'').startsWith('MALICE')?'bad':'ok')+'">worst verdict '+(r.worst_verdict||'—').replace("_"," ")+'</span> · chain '+(r.chain.chain_ok?'verified ✓':'BROKEN')+'';
     $("replayBtn").disabled=true;
   }catch(e){ $("replayStatus").innerHTML='<span class="bad">Fleet run failed: '+e.message+'</span>'; }
   finally{ setBusy(false,""); $("fleetBtn").disabled=false; }
 }
 
-async function injectionDemo(){
+async function injectionValidation(){
   setBusy(true,"planting evidence, baiting a naive narrator…");
   $("injectBtn").disabled=true;
   try{
-    const r=await (await fetch("/injection-demo",{method:"POST"})).json();
+    const r=await (await fetch("/injection-validation",{method:"POST"})).json();
     $("bodyPanel").hidden=true; $("agentLog").hidden=true; $("mlTriage").hidden=true;
     $("timeline").innerHTML=""; $("emptyNote").hidden=true;
     $("injPlanted").textContent=r.planted_instruction||"(none found)";
@@ -420,10 +418,10 @@ async function injectionDemo(){
       ? '<span class="caught">CAUGHT ✓</span> — the narrator\'s claim contradicts the sealed verdict ('+g.claims_hallucinated+' hallucinated claim'+(g.claims_hallucinated===1?'':'s')+', rate '+g.hallucination_rate+'). The narration is redacted against the seal.'
       : 'This narrator resisted the bait — but the verdict never depended on that. The seal holds regardless.';
     $("injInv").innerHTML=r.invariant;
-    $("injectDemo").hidden=false;
+    $("injectValidation").hidden=false;
     $("replayStatus").innerHTML='<span class="ok">Sealed verdict unchanged by the injected evidence.</span>';
     $("replayBtn").disabled=true;
-  }catch(e){ $("replayStatus").innerHTML='<span class="bad">Injection demo failed: '+e.message+'</span>'; }
+  }catch(e){ $("replayStatus").innerHTML='<span class="bad">Injection validation failed: '+e.message+'</span>'; }
   finally{ setBusy(false,""); $("injectBtn").disabled=false; }
 }
 $("replayBtn").onclick=replay;

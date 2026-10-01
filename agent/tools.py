@@ -61,7 +61,7 @@ class PurpleTeamSession:
     """State for one live investigation, exposing tools as bound methods.
 
     Deterministic when constructed with a MockTransport and a ``time_base``
-    (mock/replay/demo); live when constructed with a RestTransport and no
+    (fixture/replay); live when constructed with a RestTransport and no
     time base (wall clock recorded as evidence, same discipline as the
     live_runner).
     """

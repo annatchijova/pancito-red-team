@@ -3,18 +3,13 @@
 Guidance for any AI coding agent (Claude Code, Cursor, or otherwise) with write
 access here. It tells you how to build, run, and test the project, and — more
 importantly — the invariants you must not break. Read this before you touch code.
-The user-facing story is in `README.md`; the deploy runbook is in `DEPLOY.md`.
+The user-facing story and current product boundary are in `README.md`.
 
 ## What this is
 
-annaconda is a live purple-team DFIR backend: it analyzes an endpoint as an
-attack unfolds and seals a reproducible, MITRE-mapped verdict a court could
-trust. A fleet of Google ADK + Gemini agents works cases **unattended** (choosing
-what to hunt, carrying a case's memory across weeks, escalating to a human when
-needed) — **but the language model is out of the decision path.**
-
-PANCITO-RED-TEAM adds an offensive-validation surface with one non-negotiable scope:
-every action exists to test a Blue control on an explicitly authorized target.
+PANCITO-RED-TEAM is a bounded offensive-validation system built on the inherited
+VIGÍA/annaconda deterministic DFIR core. Every action exists to test a Blue
+control on an explicitly authorized target.
 Do not add free-form shell, payload, exploit, jailbreak, arbitrary URL/host, or
 model-authored execution. Offensive capabilities enter through a deterministic
 catalog and an authorization gate, and produce reproducible evidence receipts.
@@ -104,27 +99,16 @@ agent/
   principal.py       identity: verified Google token vs asserted department
   catalog.py         the gate: who may task what, over which data class, in which region
   registry.py        sealed agent registry (refuses agents whose manifest hash isn't approved)
-tests/               24 suites; determinism, attack scenario, commander loop, principal, tracing, ...
+tests/               determinism, authorization, replay, custody, and inherited subsystem suites
 tools/ pipeline/ ml/ inference/ security/ sift/ verdict/ contracts/   supporting modules
-DEPLOY.md            Cloud Run / Vertex / Firestore runbook (READ IT before deploying)
 ```
 
-## Deploying
+## Deployment status
 
-The service is `vigia-live` on Cloud Run in project **`vigia-497422`**, region
-`us-central1`. Follow `DEPLOY.md` exactly. Two non-obvious gotchas that will
-silently break a recording if you miss them:
-
-- **`GOOGLE_CLOUD_PROJECT` is not injected by Cloud Run.** The case store reads
-  it to reach Firestore; without it the store degrades to memory and the fleet's
-  continuity claim stops being true. Always pass it in `--set-env-vars`, and
-  **confirm `/health` says `"case_store":"firestore"`** before recording.
-- **Gemini 3.x on Vertex is served from `global`, not a region.** Set
-  `GOOGLE_CLOUD_LOCATION=global` (the Cloud Run service still lives in
-  `us-central1`); a regional value yields a 404.
-
-The autonomous sweep is Cloud Scheduler → Pub/Sub → `POST /tasks/sweep`. A case
-created via `POST /cases` is due immediately, so it is worked on the next sweep.
+There is no approved PANCITO production deployment runbook. The inherited
+service is fixture-backed replay and must not be represented as a live
+offensive transport. Resolve the package/service product boundary, identity,
+persistence, quotas, and Kassandra salt before publishing it.
 
 ## Before you commit
 

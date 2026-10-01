@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>annaconda — Case Queue</title>
+<title>PANCITO-RED-TEAM — Case Queue</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -77,7 +77,7 @@
 </head>
 <body class="grid-bg">
   <nav class="nav"><div class="nav-in">
-    <a class="brand" href="/">annaconda<span class="dot">.</span></a>
+    <a class="brand" href="/">PANCITO<span class="dot">.</span></a>
     <div class="row">
       <span class="persist" id="persist"></span>
       <div class="nav-links">
@@ -85,8 +85,6 @@
         <a href="/fleet-console">Fleet</a>
         <a href="/exhibit">Exhibit</a>
         <a href="/consult">Mentor</a>
-        <a href="/architecture">Architecture</a>
-        <a href="/deck">Deck</a>
       </div>
       <button class="theme" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
     </div>
@@ -106,7 +104,6 @@
           <div class="f"><label class="field">Host</label><input id="cHost" value="FINANCE-WS-04" spellcheck="false"></div>
           <div class="f"><label class="field">Examiner</label><input id="cExam" value="perito-01" spellcheck="false"></div>
           <button class="primary" id="createBtn">Open case</button>
-          <button class="ghost" id="resetBtn" title="Reset the showcase cases to a clean state">Reset demo</button>
         </div>
         <div id="queue"><div class="empty">Loading…</div></div>
       </div>
@@ -218,13 +215,6 @@ $("createBtn").onclick=async()=>{
     body:JSON.stringify({case_id,hostname,examiner_id})});
   if(r.ok){ await loadQueue(); openCase(case_id); }
   else{ const e=await r.json(); alert(e.detail||"could not open case"); }
-};
-
-$("resetBtn").onclick=async()=>{
-  $("resetBtn").disabled=true; $("resetBtn").textContent="Seeding…";
-  try{ await fetch("/demo/seed",{method:"POST"}); await loadQueue(); openCase("DEMO-ABSTAIN"); }
-  catch(e){ alert("reset failed: "+e.message); }
-  finally{ $("resetBtn").disabled=false; $("resetBtn").textContent="Reset demo"; }
 };
 
 loadQueue();

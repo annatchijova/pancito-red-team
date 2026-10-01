@@ -12,7 +12,7 @@ how confident we are about it:
                    subject maps to a department in the deployment's roster
     asserted       the department was claimed with no verified identity
 
-Both are allowed to run by default, because the public demo has no identity
+Both are allowed to run by default, because a local replay has no identity
 provider in front of it — but they are never conflated. The principal travels
 into the cycle and is sealed into the case's mission journal, so a record shows
 who ran a cycle and whether that claim was verified. Set
@@ -21,7 +21,7 @@ refused outright: that is the production posture, and it is one env var, not a
 rewrite.
 
 Why not simply require it always: refusing every unauthenticated tasking would
-make the deployed demo unusable, and pretending an asserted department is an
+make an unauthenticated deployment unusable, and pretending an asserted department is an
 authenticated one would be exactly the kind of quiet overclaim this project
 exists to avoid. Naming the difference on every record is the honest third
 option.
@@ -50,10 +50,10 @@ class UnauthenticatedPrincipalError(PermissionError):
 DEFAULT_DEPARTMENT_ENV = "VIGIA_DEFAULT_DEPARTMENT"
 
 # What an unauthenticated caller that names no department is treated as. The
-# deployed demo has no identity provider, so this is the posture that keeps it
+# local replay has no identity provider, so this is the posture that keeps it
 # usable — and it was, accidentally, the most privileged department this
 # deployment publishes: incident-response is cleared to task every agent in the
-# catalog (red-team A-5). That may still be the right demo setting, but it has
+# catalog (red-team A-5). That may still be the right replay setting, but it has
 # to be a stated posture rather than whichever constant happened to be in scope
 # at the call site, so it is named here, overridable, reported on /health, and
 # refused outright when it is not a published department.

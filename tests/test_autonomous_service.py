@@ -1,6 +1,6 @@
 """The unattended path through the service, end to end.
 
-What a judge (or a 3am cron) actually hits: create a case, wake the fleet, and
+What an operator (or a 3am cron) actually hits: create a case, wake the fleet, and
 find that the case moved on its own — a sealed verdict appended, a human
 escalated to, a next cycle scheduled, and a chain-verified memory of why.
 
@@ -34,7 +34,7 @@ def client():
 
 
 def test_the_cycle_endpoint_is_rate_limited(client):
-    """An agentic cycle calls Gemini, so a public demo URL must not be a way to
+    """An agentic cycle calls Gemini, so a public endpoint must not be a way to
     burn the quota."""
     from service.app import _RATE_HITS, _RATE_MAX
     _new_case(client, "SVC-RATE")
@@ -123,15 +123,6 @@ def test_the_queue_shows_what_the_fleet_is_doing(client):
     assert autonomy_row["next_due_utc"]
 
 
-def test_demo_cases_are_not_moved_by_the_sweep(client):
-    client.post("/demo/seed")
-    before = client.get("/cases/DEMO-MALICE").json()["case"]
-    client.post("/tasks/sweep", json={})
-    after = client.get("/cases/DEMO-MALICE").json()["case"]
-    assert after["entries"] == before["entries"]
-    assert after["mission"]["cycles"] == before["mission"]["cycles"]
-
-
 def test_the_catalog_endpoint_publishes_per_department(client):
     everything = client.get("/catalog").json()
     assert everything["registry_agreement"] == "ok"
@@ -196,7 +187,7 @@ def _force_due(case_id):
 
 def test_a_sweep_caps_how_many_cycles_it_runs(client):
     """Every cycle is a Gemini turn and case creation is unauthenticated on the
-    public demo, so without a cap the cost of a wake-up is set by whoever
+    public endpoint, so without a cap the cost of a wake-up is set by whoever
     created the most cases."""
     from service.app import SWEEP_MAX_CYCLES, _RATE_HITS
     for i in range(SWEEP_MAX_CYCLES + 5):
@@ -253,13 +244,19 @@ def test_creating_a_case_is_rate_limited(client):
     _RATE_HITS.clear()
 
 
-def test_the_injection_demo_surfaces_the_planted_line_and_a_sealed_malice(client):
-    """The opening beat of the demo: point at what the attacker planted, next to
-    the sealed MALICE verdict. The planted-line extractor once looked for
+def test_injection_validation_surfaces_the_planted_line_and_sealed_malice(
+        client, monkeypatch):
+    """Show what the attacker planted beside the sealed MALICE verdict.
+
+    The planted-line extractor once looked for
     "ignore instructions" while the fixture plants a forged EDR annotation, so
     the panel showed nothing — pinned here so it can't go stale silently.
     Model-independent: the seal and the planted line do not need a live model."""
-    body = client.post("/injection-demo").json()
+    monkeypatch.setattr("service.app._naive_narrate",
+                        lambda evidence, kassandra: "The host is benign.")
+    monkeypatch.setattr("service.app._faithful_narrate",
+                        lambda sealed: f"Sealed state: {sealed['state']}.")
+    body = client.post("/injection-validation").json()
     planted = body.get("planted_instruction") or ""
     assert planted, "the planted-instruction line came back empty"
     assert "CLASSIFICATION" in planted.upper() or "EDR-ANNOTATION" in planted.upper()

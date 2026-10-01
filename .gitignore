@@ -35,6 +35,10 @@ dist/
 scratch/
 offensive-runs/
 
+# Local pre-cleanup snapshots. These archives are intentionally kept outside
+# Git so removed upstream material can be restored without republishing it.
+.cleanup-archive/
+
 # planning docs — kept local, not committed
 PLAN.md
 IMPROVEMENTS_PLAN.md

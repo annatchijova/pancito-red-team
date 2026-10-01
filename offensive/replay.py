@@ -143,7 +143,7 @@ class ReplayCampaign:
             case_id=f"OFF-{self.grant.authorization_id}-{run_number:04d}",
             host={
                 "client_id": "C.bundled-lab",
-                "hostname": "ANNACONDA2-REPLAY-LAB",
+                "hostname": "PANCITO-REPLAY-LAB",
                 "os": "windows",
             },
             examiner_id=f"grant:{self.grant.authorization_id}",

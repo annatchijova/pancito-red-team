@@ -167,7 +167,7 @@ def dispatch_investigation(session: PurpleTeamSession, *,
                            department: str = "incident-response") -> dict:
     """The dispatcher runs the fleet over a case: the hunters collect (each its
     own disjoint window), the correlator adjudicates and seals. Deterministic
-    orchestration — reliable for a live demo — with every step attributed to the
+    orchestration — reproducible during validation — with every step attributed to the
     specialist that owns that tool contract.
 
     ``department`` is who is running it; the catalog refuses a department that

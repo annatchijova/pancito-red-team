@@ -3,7 +3,7 @@ vigia_scorer.py — VIGÍA Forensic Intent Scorer
 ===============================================
 
 Part of the VIGÍA project — Forensic Intentionality Analysis Suite.
-Developed for the SANS FIND EVIL Hackathon 2026.
+Deterministic forensic scoring engine inherited from VIGÍA.
 Candidate for integration into SANS SIFT Workstation.
 
 License: Apache 2.0
@@ -14,7 +14,7 @@ DESCRIPTION:
     Standalone forensic scorer. Implements the malicious intent scoring
     pipeline: TrustFusion → CorrelationDecay → CAIE → Decision → Quadripartite.
     Does not require the vigia package to be installed — runs in standalone
-    demo mode with safe fallback to conservative parameters.
+    replay mode with safe fallback to conservative parameters.
 
 FORENSIC PHILOSOPHY:
     Three pillars: Peircean Thirdness (abductive inference), Occam's Razor
@@ -384,7 +384,7 @@ def _compute_temporal_factor(violations: list[dict], artifact_id: str) -> Fracti
     """
     Temporal penalty factor per artifact. Returns Fraction (P0: no math.exp()).
 
-    Inline — does not depend on the vigia package. Allows standalone demo execution.
+    Inline — does not depend on the vigia package. Allows standalone replay execution.
 
     Weights by violation type (forensic severity):
       EFFECT_BEFORE_CAUSE    : physical law violation — maximum weight (1.0)

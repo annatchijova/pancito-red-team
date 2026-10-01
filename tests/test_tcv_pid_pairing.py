@@ -67,7 +67,7 @@ def test_unrelated_pids_on_a_clean_host_produce_no_violation():
 
 
 def test_same_pid_violation_still_fires():
-    """The demo's finding must survive: a beacon before its own process."""
+    """The fixture's finding must survive: a beacon before its own process."""
     tcv, _ = _fractures_of(_net(pid=6120), _proc(pid=6120))
     assert len(tcv) == 1, "the real structural impossibility stopped firing"
     assert tcv[0].severity == 1.0
