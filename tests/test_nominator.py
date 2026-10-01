@@ -8,7 +8,7 @@ from ml.nominator import SurprisalNominator, nominate_window
 from tools.velociraptor.adapter import MockTransport, collect_window
 
 REPO = Path(__file__).resolve().parent.parent
-ATTACK = REPO / "tests" / "fixtures" / "attack"
+ATTACK = REPO / "offensive" / "fixtures" / "attack"
 SCHEMA = json.loads(
     (REPO / "contracts" / "ml_nomination.schema.json").read_text())
 

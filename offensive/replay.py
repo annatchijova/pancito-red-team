@@ -19,7 +19,7 @@ from offensive.oracle import DetectionExpectation, evaluate_detection
 from tools.velociraptor.adapter import MockTransport
 
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures"
 _LAB_TARGET = "bundled-replay-lab"
 _BLUE_OBJECTIVE = "blue-control-validation"
 _ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
@@ -137,7 +137,7 @@ class ReplayCampaign:
             self._runs += 1
             run_number = self._runs
         run_dir = self.out_dir / self.grant.authorization_id / f"run-{run_number:04d}"
-        fixture = _REPO_ROOT / "tests" / "fixtures" / spec["fixture"]
+        fixture = _FIXTURES_ROOT / spec["fixture"]
         session = PurpleTeamSession(
             MockTransport(fixture),
             case_id=f"OFF-{self.grant.authorization_id}-{run_number:04d}",

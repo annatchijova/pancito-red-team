@@ -33,7 +33,7 @@ from agent.tools import PurpleTeamSession  # noqa: E402
 from tools.velociraptor.adapter import MockTransport  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-ATTACK = REPO / "tests" / "fixtures" / "attack"
+ATTACK = REPO / "offensive" / "fixtures" / "attack"
 INSUFFICIENT = REPO / "tests" / "fixtures" / "insufficient"
 BENIGN = REPO / "tests" / "fixtures" / "velociraptor"
 HOST = {"client_id": "C.1", "hostname": "WIN11-VICTIM", "os": "windows"}

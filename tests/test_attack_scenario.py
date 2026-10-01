@@ -15,7 +15,7 @@ import pytest
 from tools.velociraptor.adapter import MockTransport, collect_window, window_to_case
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ATTACK = REPO_ROOT / "tests" / "fixtures" / "attack"
+ATTACK = REPO_ROOT / "offensive" / "fixtures" / "attack"
 BENIGN = REPO_ROOT / "tests" / "fixtures" / "velociraptor"
 HOST = {"client_id": "C.mock01", "hostname": "WIN11-VICTIM", "os": "windows"}
 

@@ -52,8 +52,13 @@ def exporter():
 
 
 def _session(fixtures="attack", case_id="TRACE"):
+    fixture_dir = (
+        REPO / "offensive" / "fixtures" / "attack"
+        if fixtures == "attack"
+        else REPO / "tests" / "fixtures" / fixtures
+    )
     return PurpleTeamSession(
-        MockTransport(REPO / "tests" / "fixtures" / fixtures), case_id=case_id,
+        MockTransport(fixture_dir), case_id=case_id,
         host=HOST, examiner_id="op", out_dir=tempfile.mkdtemp(),
         source="replay", time_base="2026-08-12T14:10:00Z")
 

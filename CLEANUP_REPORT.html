@@ -79,7 +79,7 @@ The archive directory is ignored; the report itself is versioned.</p>
 
 <h2>Important material retained</h2>
 <ul>
-  <li><code>tests/fixtures/attack/</code>: runtime input for the only current offensive scenario.</li>
+  <li><code>offensive/fixtures/attack/</code>: packaged runtime input for the only current offensive scenario.</li>
   <li><code>pipeline/</code> and its scoring dependencies: dynamically loaded by a real replay.</li>
   <li><code>service/case_store.py</code> and <code>service/chain_store.py</code>: connected custody/persistence code with broad tests.</li>
   <li>Kassandra and hallucination controls: security mechanisms, not contest artifacts.</li>
@@ -88,7 +88,6 @@ The archive directory is ignored; the report itself is versioned.</p>
 
 <h2>Deferred findings — not silently deleted</h2>
 <ol>
-  <li><strong>Packaging defect:</strong> <code>pyproject.toml</code> omits <code>agent</code>, although <code>offensive.replay</code> imports <code>agent.tools</code>. The wheel is therefore structurally incomplete.</li>
   <li><strong>Two product surfaces:</strong> package metadata describes a library while Docker starts the inherited Cloud service. Choose and test a boundary before deleting either connected cluster.</li>
   <li><strong>Replay presented as service:</strong> <code>service.app</code> always uses <code>MockTransport</code> with fixtures, fixed host metadata, and fixed time bases. It is not a live offensive transport.</li>
   <li><strong>Potential duplicate decision engine:</strong> <code>pipeline.pipeline</code> looks like legacy alternate scoring, but import-time coupling in <code>pipeline.vigia_integration_bridge</code> makes it load-bearing today. Extract schema normalization before reassessing deletion.</li>
@@ -97,14 +96,16 @@ The archive directory is ignored; the report itself is versioned.</p>
 
 <h2>Verification</h2>
 <ul>
+  <li>Current full-suite verification: 493 passed and 5 skipped after packaging closure; the only warning is an existing Google ADK experimental-feature notice.</li>
   <li>23 offensive-boundary and determinism tests passed.</li>
   <li>25 case-store and chain-segmentation tests passed.</li>
   <li>Three retained inline module suites passed.</li>
   <li>24 threat-intel, temporal-causality, and commander-loop tests passed (one existing Google ADK experimental-feature warning).</li>
   <li>A direct authorized <code>ReplayCampaign</code> completed and returned <code>DETECTED_AS_EXPECTED</code>.</li>
+  <li>The packaging defect found during cleanup was repaired: a wheel installed in an empty virtual environment imported the full replay closure and completed a sealed <code>MALICE_HIGH</code> replay from packaged fixtures.</li>
   <li>The renamed injection-validation function and route were exercised directly; the sealed result was <code>MALICE_HIGH</code> and the removed routes were absent.</li>
   <li>All remaining Python files passed <code>compileall</code> after cleanup.</li>
-  <li>The FastAPI <code>TestClient</code> integration test is blocked in this environment during <code>TestClient.__enter__</code>, before the request is issued. A faulthandler trace confirmed the wait is in AnyIO portal startup; the direct route check above passed.</li>
+  <li>The FastAPI <code>TestClient</code> integrations passed when run with loopback sockets enabled; the default workspace sandbox itself denies local socket creation.</li>
 </ul>
 
 <h2>Branch integration after cleanup</h2>
