@@ -62,6 +62,8 @@ productos agentic de seguridad utilicen el primer diseño.
 | Cambio de estado público | ¿Una identidad anónima o inválida puede mutar un campo? | Read-back autenticado y restauración verificada |
 | Ingreso de archivos | ¿Storage acepta bytes incompatibles con tipo o tamaño? | Tres muestras inertes, digest/tamaño exactos y borrado verificado |
 | Diferencial de evasión forense | ¿Los sensores SIFT distinguen rastros conocidos de timestomp y borrado de logs frente a un control limpio? | Tres celdas sintéticas propias del módulo; ground truth exacto separado de observaciones no selladas |
+| Antiforense Prefetch | ¿SIFT distingue ejecución sospechosa y eliminación selectiva de Prefetch? | Control limpio de diez archivos más celdas fijas de ejecución y borrado; sólo archivos temporales inertes |
+| Evasión Registry | ¿SIFT distingue persistencia Run-key sospechosa y colisión de timestamps? | Hechos sintéticos a nivel parser; sin hive, proceso RegRipper, comando ni payload de entrada |
 | Triage OpenAPI | ¿Qué rutas declaradas merecen un experimento acotado? | Análisis pasivo local; cada resultado sigue siendo candidato, no hallazgo |
 | Evaluación Purple | ¿Blue observó y alertó sobre la conducta ejecutada? | Prevención Red y detección Blue permanecen separadas |
 
@@ -118,6 +120,9 @@ Para preparar el entorno y usar el servicio heredado opcional, ver
 - El [diferencial de evasión forense](tests/test_forensic_evasion_differential.py)
   prueba el parser/analyzer MFT y el detector de cadenas de eventos reales de
   SIFT contra ground truth sintético fijo, sin promover el sensor a veredicto.
+- Las pruebas diferenciales de [Prefetch](tests/test_prefetch_evasion.py) y
+  [Registry](tests/test_registry_evasion.py) ejercitan dos familias SIFT más
+  bajo el mismo contrato de control primero.
 - El [recibo visual de arquitectura](docs/pancito-architecture.visual-check.json)
   registra contención de escritorio y capturas del diagrama entregado.
 

@@ -13,7 +13,7 @@ custody, agent, and service modules. The supported offensive product surface is:
 1. deterministic replay of committed hostile telemetry;
 2. passive local OpenAPI triage and provenance-preserving handoff;
 3. four curated HTTP differentials restricted to literal loopback origins;
-4. one offline forensic-evasion differential over module-owned synthetic data;
+4. three offline SIFT differentials over module-owned synthetic data;
 5. deterministic Purple evaluation of operator-supplied Blue evidence; and
 6. optional model narration after consequential values already exist.
 
@@ -98,6 +98,8 @@ backend degradation is exposed through `/health`.
 | [offensive/state_change.py](offensive/state_change.py) | At most 13 bounded requests | Baseline plus valid PATCH/read-back | Anonymous and invalid-bearer PATCH | Restore and authenticated restore verification after each observed mutation |
 | [offensive/file_ingress.py](offensive/file_ingress.py) | At most 12 bounded requests | Valid inert text stores exactly | Declared PNG mismatch and `limit + 1` bytes | DELETE plus authenticated 404/410 verification for every returned ID |
 | [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
+| [offensive/prefetch_evasion.py](offensive/prefetch_evasion.py) | Exactly 3 offline cells, zero requests | Ten inert SCCA-signature files | Suspicious executable name and reduced Prefetch set | Module-owned temporary directory is deleted automatically; no path is retained |
+| [offensive/registry_evasion.py](offensive/registry_evasion.py) | Exactly 3 offline cells, zero processes | Benign Run-key text and unique timestamps | Suspicious Run-key text and ten-key timestamp collision | Exercises parser-level detectors only; no hive or RegRipper execution |
 
 All active HTTP capabilities reject remote hosts, HTTPS, user information,
 redirect following, arbitrary commands, and arbitrary sample files. Secrets are
@@ -128,6 +130,30 @@ fixtures and versions.
 SIFT's internal floating-point timestamp conversion remains outside the sealed
 core. The capability never calls its float-producing `to_signal()` methods,
 does not seal its receipt, and states `part_of_forensic_verdict: false`.
+
+### Prefetch and Registry pair
+
+[offensive/windows_artifact_cli.py](offensive/windows_artifact_cli.py)
+coordinates two independently classified modules from one authorization
+manifest:
+
+```text
+                         ┌─> PrefetchAnalyzer ─> exact expected signals ─┐
+strict authorization ────┤                                               ├─> unsealed suite receipt
+                         └─> Registry detectors -> exact expected signals ┘
+```
+
+The Prefetch module creates only minimal signature-valid inert files in a
+private temporary directory and removes the directory before returning. The
+Registry module invokes `PersistenceDetector` and `TimestompDetector` directly
+over fixed text and exact `RegistryKey` facts. It never opens a hive and never
+constructs `RegRipperInterface`, so this surface cannot launch a process.
+
+Each module owns its ground truth, clean control, two negative cells, hashes,
+and epistemic result. The suite reports `INCONCLUSIVE` if either sensor fails,
+`FALSIFIED` if, with clean controls, either negative cell misses its mutation, and
+`CONFIRMED_BY_INDUCTION` only when both narrow predictions survive. None of
+these states is a forensic verdict.
 
 ## Passive triage and handoff
 
@@ -213,6 +239,9 @@ python3 -m offensive.file_ingress_cli file-ingress-plan.json
 
 python3 -m offensive.forensic_evasion_cli --dry-run examples/forensic-evasion.synthetic.json
 python3 -m offensive.forensic_evasion_cli examples/forensic-evasion.synthetic.json
+
+python3 -m offensive.windows_artifact_cli --dry-run examples/windows-artifacts.synthetic.json
+python3 -m offensive.windows_artifact_cli examples/windows-artifacts.synthetic.json
 ```
 
 Evaluate Blue evidence without changing the Red result:
@@ -306,6 +335,8 @@ verdict/         deterministic export surfaces
   unsealed.
 - The forensic-evasion result validates only two SIFT behaviors against three
   synthetic cells; it is not a claim about arbitrary NTFS or EVTX evidence.
+- The Prefetch and Registry modules validate four parser-level behaviors; they
+  do not establish coverage for arbitrary Prefetch files or Registry hives.
 - Kassandra without a private secret salt is precomputable.
 - The inherited service and Python package still expose different product
   surfaces; deployment needs an explicit boundary decision.

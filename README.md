@@ -61,6 +61,8 @@ agentic security product uses the first design.
 | Public state change | Can an anonymous or invalid identity mutate one field? | Authenticated read-back and verified restoration after each successful negative cell |
 | File ingress | Does storage accept bytes that contradict type or size policy? | Three generated inert samples, exact digest/size read-back, verified deletion |
 | Forensic-evasion differential | Do SIFT sensors distinguish known timestomp and log-wipe traces from a clean control? | Three module-owned synthetic cells; exact ground truth stays separate from unsealed sensor observations |
+| Prefetch anti-forensics | Does SIFT distinguish suspicious execution and selective Prefetch removal? | Ten-file clean control plus fixed execution and wipe cells; temporary inert files only |
+| Registry evasion | Does SIFT distinguish suspicious Run-key persistence and timestamp collision? | Parser-level synthetic facts only; no hive, RegRipper process, command, or payload input |
 | OpenAPI triage | Which declared routes deserve a bounded follow-up experiment? | Passive local artifact analysis; every result remains a candidate, never a finding |
 | Purple evaluation | Did Blue observe and alert on the exact executed behavior? | Red prevention and Blue detection remain separate conclusions |
 
@@ -116,6 +118,9 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
 - [Forensic-evasion differential](tests/test_forensic_evasion_differential.py)
   tests the real SIFT MFT parser/analyzer and event-chain detector against
   fixed synthetic ground truth without promoting sensor output to a verdict.
+- [Prefetch](tests/test_prefetch_evasion.py) and
+  [Registry](tests/test_registry_evasion.py) differential tests exercise two
+  more SIFT sensor families under the same controls-first contract.
 - The [architecture validation receipt](docs/pancito-architecture.visual-check.json)
   records desktop containment and capture evidence for the delivered diagram.
 
