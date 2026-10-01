@@ -33,6 +33,24 @@ The first complete level is deliberately narrow and real:
   `KASSANDRA_PROTOCOL_VIOLATION / INTEGRITY_UNKNOWN`; it does not become
   `MALICE`.
 
+An engagement can be loaded from a strict, reviewable JSON artifact:
+
+```python
+from offensive.engagement import load_engagement
+from offensive.replay import ReplayCampaign
+
+plan = load_engagement("examples/engagement.replay.json")
+receipt = ReplayCampaign(plan.to_grant(), out_dir="offensive-runs").run(
+    "process-hollowing-timestomp"
+)
+```
+
+The receipt binds the exact manifest bytes and its canonical scope with separate
+SHA-256 hashes. It also separates replay execution from the deterministic Blue
+detection oracle, so "the action ran" cannot be mistaken for "the control
+detected it." See [upstream research notes](UPSTREAM_RESEARCH.md) for the
+reviewed projects, exact commits, licenses, adopted ideas, and deferred surfaces.
+
 Production must provide a private salt:
 
 ```bash

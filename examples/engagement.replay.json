@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "engagement_id": "ENG-LOCAL-001",
+  "authorization_reference": "replace-with-written-authorization-reference",
+  "authorized_by": "replace-with-authorizing-person",
+  "operator_acknowledged": true,
+  "target": "bundled-replay-lab",
+  "objective": "blue-control-validation",
+  "allowed_scenarios": [
+    "process-hollowing-timestomp"
+  ],
+  "max_runs": 1
+}

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from agent.tools import PurpleTeamSession
+from offensive.oracle import DetectionExpectation, evaluate_detection
 from tools.velociraptor.adapter import MockTransport
 
 
@@ -48,16 +49,39 @@ class AuthorizationGrant:
     objective: str
     allowed_scenarios: tuple[str, ...]
     max_runs: int
+    authorized_by: str = ""
+    authorization_reference: str = ""
+    scope_sha256: str = ""
+    source_sha256: str = ""
 
     def __post_init__(self) -> None:
         if not _ID_RE.fullmatch(self.authorization_id):
             raise ValueError("authorization_id must match [A-Za-z0-9._-]{1,128}")
+        if self.target != _LAB_TARGET:
+            raise AuthorizationError(
+                f"target must be {_LAB_TARGET!r}; live or remote targets are "
+                "outside this replay-only capability"
+            )
+        if self.objective != _BLUE_OBJECTIVE:
+            raise AuthorizationError(f"objective must be {_BLUE_OBJECTIVE!r}")
         if not isinstance(self.allowed_scenarios, tuple):
             raise TypeError("allowed_scenarios must be a tuple")
         if isinstance(self.max_runs, bool) or not isinstance(self.max_runs, int):
             raise TypeError("max_runs must be an integer")
         if not 1 <= self.max_runs <= 100:
             raise ValueError("max_runs must be between 1 and 100")
+        for name in ("authorized_by", "authorization_reference"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or len(value) > 512:
+                raise ValueError(f"{name} must be bounded text")
+        for name in ("scope_sha256", "source_sha256"):
+            value = getattr(self, name)
+            if value and not re.fullmatch(r"[0-9a-f]{64}", value):
+                raise ValueError(f"{name} must be a lowercase SHA-256 digest")
+        if bool(self.scope_sha256) != bool(self.source_sha256):
+            raise ValueError(
+                "scope_sha256 and source_sha256 must be provided together"
+            )
 
 
 def scenario_catalog() -> list[dict[str, Any]]:
@@ -77,6 +101,8 @@ class ReplayCampaign:
     """A stateful, budgeted use of the immutable replay catalogue."""
 
     def __init__(self, grant: AuthorizationGrant, *, out_dir: str | Path) -> None:
+        # Recheck at the execution boundary as defense in depth if a future
+        # grant implementation bypasses this dataclass's construction checks.
         if grant.target != _LAB_TARGET:
             raise AuthorizationError(
                 f"target must be {_LAB_TARGET!r}; live or remote targets are "
@@ -146,14 +172,15 @@ class ReplayCampaign:
             raise RuntimeError(
                 "replay produced a verdict whose custody chain did not verify"
             )
-        observed = tuple(verdict["mitre_techniques"])
-        missing = sorted(set(spec["expected_techniques"]) - set(observed))
-        state_matches = verdict["verdict_state"].startswith(
-            spec["expected_state_prefix"])
-        validation_status = (
-            "DETECTED_AS_EXPECTED" if state_matches and not missing
-            else "CONTROL_GAP"
+        detection_validation = evaluate_detection(
+            verdict=verdict,
+            custody=custody,
+            expectation=DetectionExpectation(
+                expected_techniques=spec["expected_techniques"],
+                expected_state_prefix=spec["expected_state_prefix"],
+            ),
         )
+        manifest_backed = bool(self.grant.scope_sha256)
         return {
             "authorization_id": self.grant.authorization_id,
             "target": self.grant.target,
@@ -162,14 +189,22 @@ class ReplayCampaign:
             "execution_mode": "replay-only",
             "model_used": False,
             "run_number": run_number,
-            "sealed_verdict": verdict,
-            "custody": custody,
-            "detection_validation": {
-                "status": validation_status,
-                "expected_techniques": list(spec["expected_techniques"]),
-                "observed_techniques": list(observed),
-                "missing_techniques": missing,
-                "derived_after_sealing": True,
+            "authorization_provenance": {
+                "mode": (
+                    "engagement-manifest" if manifest_backed else "in-memory"
+                ),
+                "authentication": "unverified-operator-assertion",
+                "authorized_by": self.grant.authorized_by,
+                "authorization_reference": self.grant.authorization_reference,
+                "scope_sha256": self.grant.scope_sha256,
+                "source_sha256": self.grant.source_sha256,
                 "part_of_forensic_verdict": False,
             },
+            "execution_outcome": {
+                "status": "SUCCEEDED",
+                "evidence_window_id": summary["window_id"],
+            },
+            "sealed_verdict": verdict,
+            "custody": custody,
+            "detection_validation": detection_validation,
         }

@@ -119,6 +119,17 @@ source code is copied or imported. PANCITO-RED-TEAM does not inherit Strix's gen
 shell, browser, exploit, or post-exploitation surface; its current offensive
 executor is replay-only and Blue-directed.
 
+### Offensive-agent architecture study
+
+PANCITO-RED-TEAM also studied AgentSploit, BreachPilot, Scarlight, and
+RedTeamAgent for authorization, scope, evidence, capability, and lifecycle
+patterns. Exact repositories, reviewed commits, observed licenses, adopted
+ideas, and limitations are recorded in
+[`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md). The implementation is original
+to this repository; no upstream source files were copied. RedTeamAgent had no
+license file in the reviewed tree and is treated as an architectural reference
+only.
+
 ---
 
 ## Models
