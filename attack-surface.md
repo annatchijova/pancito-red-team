@@ -2,13 +2,13 @@
 
 Authorization: repository owner request in this workspace. Mode: passive source
 review plus active tests restricted to operator-owned loopback labs. Inventory as
-of base commit `0c61e48` and the current working tree.
+of base commit `41988f8` and the current working tree.
 
 ## Candidate queue (ranked)
 
 | # | Candidate | Entry point | Reachability | Asset behind it | Plausibility basis | Provenance | Falsifier | Level |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Broken function-level authorization | Administrative read route | AUTHENTICATED MEMBER | Administrative data or function output | Route existence and role enforcement are distinct controls; a bounded credential-only differential now exists | `offensive/function_authz.py` | Both role controls succeed and the member is denied with no admin canary | CANDIDATE |
+| 1 | Cross-tenant collection listing | Tenant-scoped collection route | AUTHENTICATED | Multi-object tenant data | Single-object authorization does not establish list-query tenant scoping; a bounded credential-only collection differential now exists | `offensive/collection_authz.py` | Both tenant controls succeed and the foreign principal is denied with no foreign canary | CANDIDATE |
 
 ## Below the line (enumerated, deprioritized)
 
@@ -30,6 +30,9 @@ None. This artifact ranks capability gaps; it does not assert a target finding.
 - Stale authority and nested-resource authorization were removed from the queue
   after bounded experiments established their test contracts. This closes
   implementation gaps; it does not assert that any target is safe or vulnerable.
+- Function-level authorization was removed after its bounded credential-only
+  experiment established a test contract. This closes an implementation gap;
+  it does not assert a target finding.
 
 ## Not enumerated (coverage gaps)
 

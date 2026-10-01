@@ -7,9 +7,10 @@ Actors: anonymous, invalid credential, authenticated owner, authenticated peer,
 authenticated member, administrator, low-privilege actor, privileged observer.
 
 Resources: protected route, owned object, peer object, parent-scoped child,
-allowed property, protected property, member function, administrative function.
+allowed property, protected property, tenant collection, member function,
+administrative function.
 
-Actions: read and update. List, search, export, share, transfer, invite, revoke,
+Actions: read, list, and update. Search, export, share, transfer, invite, revoke,
 restore, stale-session use, and scoped-token enforcement are not yet covered.
 
 ## Matrix
@@ -22,15 +23,16 @@ restore, stale-session use, and scoped-token enforcement are not yet covered.
 | Administrator | Administrative function | Read | Allowed | Function-authorization admin control with an admin-only canary |
 | Authenticated member | Member function | Read | Allowed | Function-authorization member control with a member-only canary |
 | Authenticated member | Administrative function | Read | Denied | Function-authorization negative cell; only the credential changes from the admin control |
+| Authenticated member, tenant Alpha | Tenant Bravo collection | List | Denied | Collection-isolation negative cell; the Bravo control request changes only its credential |
 | Anonymous / invalid credential | Publicly reachable mutable resource | Update | Denied | State-change differential with authenticated read-back and restoration |
 | Low-privilege actor | Own allowed property | Update | Allowed | Mass-assignment positive control |
 | Low-privilege actor | Own protected property | Update | Denied | Mass-assignment negative cell with observer read-back |
 | Pre-issued actor credential | Role-protected resource after revocation | Read | Denied | Stale-authority transition with revoke read-back and compensating restoration |
 
 Cells not tested remain unknown. In particular, the matrix does not cover
-multi-node revocation propagation, same-tenant role changes, child writes, inference from
-error differences, browser-only controls, asynchronous jobs, GraphQL, or remote
-production targets.
+multi-node revocation propagation, same-tenant role changes, child writes,
+search/export/share actions, inference from error differences, browser-only
+controls, asynchronous jobs, GraphQL, or remote production targets.
 
 ## Findings
 
@@ -47,7 +49,8 @@ this capability matrix does not promote implementation coverage into a finding.
 ## Blue requirement
 
 Log the authenticated subject and resolved role, route parent, selected child,
-resolved child parent or tenant, function identifier, authorization decision,
-and status. Alert when a granted child read crosses its ownership binding or a
-non-admin role reaches an administrative function. The public PANCITO exercise
-marker is correlation metadata, not the detection itself.
+resolved child parent or tenant, requested collection tenant, function
+identifier, authorization decision, and status. Alert when a granted child read
+crosses its ownership binding, a collection list crosses its tenant binding, or
+a non-admin role reaches an administrative function. The public PANCITO
+exercise marker is correlation metadata, not the detection itself.

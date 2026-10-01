@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "experiment_id": "COLLECTION-LOOPBACK-001",
+  "authorization_reference": "replace-with-written-loopback-authorization",
+  "authorized_by": "replace-with-authorizer-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "alpha_collection_path": "/tenants/alpha/items",
+  "bravo_collection_path": "/tenants/bravo/items",
+  "alpha_principal_id": "alpha-member",
+  "bravo_principal_id": "bravo-member",
+  "alpha_token_env": "PANCITO_COLLECTION_ALPHA_TOKEN",
+  "bravo_token_env": "PANCITO_COLLECTION_BRAVO_TOKEN",
+  "alpha_canary_env": "PANCITO_COLLECTION_ALPHA_CANARY",
+  "bravo_canary_env": "PANCITO_COLLECTION_BRAVO_CANARY",
+  "timeout_ms": 2000,
+  "max_response_bytes": 16384
+}

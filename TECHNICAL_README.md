@@ -96,6 +96,7 @@ backend degradation is exposed through `/health`.
 | [offensive/bola.py](offensive/bola.py) | 3 GETs | Owner and peer reads establish object/canary behavior | Cross-principal object read | No response body retained; result is induction-scoped |
 | [offensive/nested_bola.py](offensive/nested_bola.py) | 3 GETs | Owner-child and peer-child reads establish both canaries | Owner credential keeps its parent and substitutes only the peer child ID | Foreign-child canary is required; bodies are discarded and only bounded hashes/booleans remain |
 | [offensive/function_authz.py](offensive/function_authz.py) | 3 GETs | Admin function and member function establish role-specific canaries | Member credential is replayed against the admin path | Admin canary is required; bodies and credentials are omitted from the unsealed receipt |
+| [offensive/collection_authz.py](offensive/collection_authz.py) | 3 GETs | Alpha and Bravo members each list their own canary-bearing collection | Alpha credential replaces Bravo's credential on the byte-identical Bravo path | Bravo canary is required; empty or redacted success remains inconclusive |
 | [offensive/authn.py](offensive/authn.py) | 3 GETs | Valid credential returns the protected canary | Anonymous and invalid bearer | A status alone cannot confirm protected-data exposure |
 | [offensive/state_change.py](offensive/state_change.py) | At most 13 bounded requests | Baseline plus valid PATCH/read-back | Anonymous and invalid-bearer PATCH | Restore and authenticated restore verification after each observed mutation |
 | [offensive/mass_assignment.py](offensive/mass_assignment.py) | At most 9 bounded requests | Low-privilege actor changes one allowed field | The same actor submits one allowed and one protected field | Separate observer reads both fields, restores both, and verifies the baseline |
@@ -254,6 +255,9 @@ python3 -m offensive.nested_bola_cli examples/nested-bola.loopback.json
 python3 -m offensive.function_authz_cli --dry-run examples/function-authz.loopback.json
 python3 -m offensive.function_authz_cli examples/function-authz.loopback.json
 
+python3 -m offensive.collection_authz_cli --dry-run examples/collection-authz.loopback.json
+python3 -m offensive.collection_authz_cli examples/collection-authz.loopback.json
+
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json
 
@@ -285,6 +289,7 @@ Evaluate Blue evidence without changing the Red result:
 python3 -m offensive.purple_cli bola red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli nested-bola red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli function-authz red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli collection-authz red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli mass-assignment red-receipt.json blue-observation.json

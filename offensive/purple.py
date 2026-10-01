@@ -24,6 +24,11 @@ _FUNCTION_AUTHZ_STEPS = (
     "MEMBER_FUNCTION_CONTROL",
     "MEMBER_ADMIN_FUNCTION_TEST",
 )
+_COLLECTION_AUTHZ_STEPS = (
+    "ALPHA_COLLECTION_CONTROL",
+    "BRAVO_COLLECTION_CONTROL",
+    "CROSS_TENANT_LIST_TEST",
+)
 _AUTHN_STEPS = (
     "VALID_CREDENTIAL_CONTROL",
     "ANONYMOUS_TEST",
@@ -102,6 +107,11 @@ _NESTED_BOLA_DETECTION_REQUIREMENT = (
 _FUNCTION_AUTHZ_DETECTION_REQUIREMENT = (
     "Alert when a non-administrative principal is granted an administrative function. "
     "Required data: subject, effective role, route, required role, decision, and status."
+)
+_COLLECTION_AUTHZ_DETECTION_REQUIREMENT = (
+    "Alert when a principal is granted a collection belonging to another tenant. "
+    "Required data: subject tenant, requested tenant, route, authorization decision, "
+    "and status."
 )
 _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
@@ -217,6 +227,29 @@ def function_authz_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "ADMIN_FUNCTION_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _FUNCTION_AUTHZ_DETECTION_REQUIREMENT,
+    }
+
+
+def collection_authz_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one cross-tenant collection differential."""
+    return {
+        "technique": "CROSS_TENANT_COLLECTION_ACCESS",
+        "attack_mapping": "OWASP_API1_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_SUBJECT_AND_PATH",
+        "expected_steps": list(_COLLECTION_AUTHZ_STEPS),
+        "expected_event_count": len(_COLLECTION_AUTHZ_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with subject tenant, requested tenant, route, and status",
+            "authorization decision with tenant binding and grant or denial",
+        ],
+        "true_positive_step": "CROSS_TENANT_LIST_TEST",
+        "benign_twin_step": "BRAVO_COLLECTION_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _COLLECTION_AUTHZ_DETECTION_REQUIREMENT,
     }
 
 
@@ -705,6 +738,72 @@ def evaluate_function_authz_detection(
         technique="BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
         declared_steps=_FUNCTION_AUTHZ_STEPS,
         detection_requirement=_FUNCTION_AUTHZ_DETECTION_REQUIREMENT)
+
+
+def evaluate_collection_authz_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the exact cross-tenant collection replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("COLLECTION_AUTHZ receipt must be an object")
+    if receipt.get("request_count") != 3 or receipt.get("maximum_request_count") != 3:
+        raise BlueObservationError("collection authorization request budget is inconsistent")
+    if (
+        receipt.get("method") != "GET"
+        or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT"
+    ):
+        raise BlueObservationError("collection authorization contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"alpha_control_passed", "bravo_control_passed"}
+        or any(not isinstance(value, bool) for value in controls.values())
+    ):
+        raise BlueObservationError("collection authorization controls are inconsistent")
+    controls_passed = controls == {
+        "alpha_control_passed": True,
+        "bravo_control_passed": True,
+    }
+    level = receipt.get("epistemic_level")
+    reason = receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if (
+            not controls_passed
+            or reason != "ALPHA_OBSERVED_BRAVO_COLLECTION_CANARY"
+        ):
+            raise BlueObservationError(
+                "collection authorization confirmed result is inconsistent"
+            )
+    elif level == "FALSIFIED":
+        if not controls_passed or reason != "ALPHA_BRAVO_COLLECTION_DENIED":
+            raise BlueObservationError(
+                "collection authorization falsified result is inconsistent"
+            )
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "ALPHA_CONTROL_FAILED",
+            "BRAVO_CONTROL_FAILED",
+            "TEST_REQUEST_FAILED",
+            "TEST_RESPONSE_TRUNCATED",
+            "TEST_REDIRECTED",
+            "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError(
+                "collection authorization inconclusive result is inconsistent"
+            )
+    else:
+        raise BlueObservationError(
+            "collection authorization epistemic level is invalid"
+        )
+    return _evaluate_detection(
+        receipt,
+        observation,
+        receipt_name="COLLECTION_AUTHZ",
+        capability="http-collection-authorization-differential",
+        technique="CROSS_TENANT_COLLECTION_ACCESS",
+        declared_steps=_COLLECTION_AUTHZ_STEPS,
+        detection_requirement=_COLLECTION_AUTHZ_DETECTION_REQUIREMENT,
+    )
 
 
 def evaluate_authn_detection(
