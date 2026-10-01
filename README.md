@@ -63,6 +63,7 @@ agentic security product uses the first design.
 | Forensic-evasion differential | Do SIFT sensors distinguish known timestomp and log-wipe traces from a clean control? | Three module-owned synthetic cells; exact ground truth stays separate from unsealed sensor observations |
 | Prefetch anti-forensics | Does SIFT distinguish suspicious execution and selective Prefetch removal? | Ten-file clean control plus fixed execution and wipe cells; temporary inert files only |
 | Registry evasion | Does SIFT distinguish suspicious Run-key persistence and timestamp collision? | Parser-level synthetic facts only; no hive, RegRipper process, command, or payload input |
+| Timeline composition audit | Do production Memory/MFT summaries preserve enough identity for cross-source causality? | Positive controls pass, but the production-shaped pair currently reports `FALSIFIED`; no sealed-verdict impact is claimed |
 | OpenAPI triage | Which declared routes deserve a bounded follow-up experiment? | Passive local artifact analysis; every result remains a candidate, never a finding |
 | Purple evaluation | Did Blue observe and alert on the exact executed behavior? | Red prevention and Blue detection remain separate conclusions |
 
@@ -121,6 +122,10 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
 - [Prefetch](tests/test_prefetch_evasion.py) and
   [Registry](tests/test_registry_evasion.py) differential tests exercise two
   more SIFT sensor families under the same controls-first contract.
+- [Timeline composition tests](tests/test_timeline_evasion.py) reproduce a
+  production-contract identity loss and retain the falsified prediction as a
+  first-class result, documented in the
+  [audit note](docs/timeline-composition-audit.md).
 - The [architecture validation receipt](docs/pancito-architecture.visual-check.json)
   records desktop containment and capture evidence for the delivered diagram.
 

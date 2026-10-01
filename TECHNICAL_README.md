@@ -13,7 +13,7 @@ custody, agent, and service modules. The supported offensive product surface is:
 1. deterministic replay of committed hostile telemetry;
 2. passive local OpenAPI triage and provenance-preserving handoff;
 3. four curated HTTP differentials restricted to literal loopback origins;
-4. three offline SIFT differentials over module-owned synthetic data;
+4. four offline SIFT differentials over module-owned synthetic data;
 5. deterministic Purple evaluation of operator-supplied Blue evidence; and
 6. optional model narration after consequential values already exist.
 
@@ -100,6 +100,7 @@ backend degradation is exposed through `/health`.
 | [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
 | [offensive/prefetch_evasion.py](offensive/prefetch_evasion.py) | Exactly 3 offline cells, zero requests | Ten inert SCCA-signature files | Suspicious executable name and reduced Prefetch set | Module-owned temporary directory is deleted automatically; no path is retained |
 | [offensive/registry_evasion.py](offensive/registry_evasion.py) | Exactly 3 offline cells, zero processes | Benign Run-key text and unique timestamps | Suspicious Run-key text and ten-key timestamp collision | Exercises parser-level detectors only; no hive or RegRipper execution |
+| [offensive/timeline_evasion.py](offensive/timeline_evasion.py) | Exactly 3 offline cells, zero requests | Shared-entity causal inversion and Memory-only gap | Production-shaped Memory/MFT summary pair | Current result is `FALSIFIED`: producer summaries lose shared identity; sealed-verdict impact remains untested |
 
 All active HTTP capabilities reject remote hosts, HTTPS, user information,
 redirect following, arbitrary commands, and arbitrary sample files. Secrets are
@@ -154,6 +155,21 @@ and epistemic result. The suite reports `INCONCLUSIVE` if either sensor fails,
 `FALSIFIED` if, with clean controls, either negative cell misses its mutation, and
 `CONFIRMED_BY_INDUCTION` only when both narrow predictions survive. None of
 these states is a forensic verdict.
+
+### Timeline composition audit
+
+The timeline experiment moves from isolated sensor behavior to a composition
+contract. A hand-shaped Memory/MFT pair proves that the causal-inversion rule
+works, and a Memory-only control proves the gap rule works. The production cell
+then passes the same conceptual process through the real
+`MemoryAnalysisResult.to_signal()` and `MFTAnalysisResult.to_signal()`
+contracts.
+
+On base commit `209db4d`, the production pair becomes two unrelated tool-level
+entities with zero timestamps. `CAUSAL_INVERSION` is missed and a contradictory
+`MEMORY_WITHOUT_DISK` gap is emitted despite an MFT signal being present. The
+result is deliberately `FALSIFIED`, not normalized into a successful suite.
+See the [reproducible audit note](docs/timeline-composition-audit.md).
 
 ## Passive triage and handoff
 
@@ -242,6 +258,9 @@ python3 -m offensive.forensic_evasion_cli examples/forensic-evasion.synthetic.js
 
 python3 -m offensive.windows_artifact_cli --dry-run examples/windows-artifacts.synthetic.json
 python3 -m offensive.windows_artifact_cli examples/windows-artifacts.synthetic.json
+
+python3 -m offensive.timeline_evasion_cli --dry-run examples/timeline-evasion.synthetic.json
+python3 -m offensive.timeline_evasion_cli examples/timeline-evasion.synthetic.json
 ```
 
 Evaluate Blue evidence without changing the Red result:
@@ -337,6 +356,8 @@ verdict/         deterministic export surfaces
   synthetic cells; it is not a claim about arbitrary NTFS or EVTX evidence.
 - The Prefetch and Registry modules validate four parser-level behaviors; they
   do not establish coverage for arbitrary Prefetch files or Registry hives.
+- The timeline audit confirms a summary-contract detection gap under synthetic
+  facts; it does not establish exploitability or sealed-verdict impact.
 - Kassandra without a private secret salt is precomputable.
 - The inherited service and Python package still expose different product
   surfaces; deployment needs an explicit boundary decision.
