@@ -96,6 +96,7 @@ backend degradation is exposed through `/health`.
 | [offensive/bola.py](offensive/bola.py) | 3 GETs | Owner and peer reads establish object/canary behavior | Cross-principal object read | No response body retained; result is induction-scoped |
 | [offensive/authn.py](offensive/authn.py) | 3 GETs | Valid credential returns the protected canary | Anonymous and invalid bearer | A status alone cannot confirm protected-data exposure |
 | [offensive/state_change.py](offensive/state_change.py) | At most 13 bounded requests | Baseline plus valid PATCH/read-back | Anonymous and invalid-bearer PATCH | Restore and authenticated restore verification after each observed mutation |
+| [offensive/mass_assignment.py](offensive/mass_assignment.py) | At most 9 bounded requests | Low-privilege actor changes one allowed field | The same actor submits one allowed and one protected field | Separate observer reads both fields, restores both, and verifies the baseline |
 | [offensive/file_ingress.py](offensive/file_ingress.py) | At most 12 bounded requests | Valid inert text stores exactly | Declared PNG mismatch and `limit + 1` bytes | DELETE plus authenticated 404/410 verification for every returned ID |
 | [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
 | [offensive/prefetch_evasion.py](offensive/prefetch_evasion.py) | Exactly 3 offline cells, zero requests | Ten inert SCCA-signature files | Suspicious executable name and reduced Prefetch set | Module-owned temporary directory is deleted automatically; no path is retained |
@@ -250,6 +251,9 @@ python3 -m offensive.authn_cli authn-plan.json
 python3 -m offensive.state_change_cli --dry-run state-change-plan.json
 python3 -m offensive.state_change_cli state-change-plan.json
 
+python3 -m offensive.mass_assignment_cli --dry-run examples/mass-assignment.loopback.json
+python3 -m offensive.mass_assignment_cli examples/mass-assignment.loopback.json
+
 python3 -m offensive.file_ingress_cli --dry-run file-ingress-plan.json
 python3 -m offensive.file_ingress_cli file-ingress-plan.json
 
@@ -269,6 +273,7 @@ Evaluate Blue evidence without changing the Red result:
 python3 -m offensive.purple_cli bola red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli authn red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli state-change red-receipt.json blue-observation.json
+python3 -m offensive.purple_cli mass-assignment red-receipt.json blue-observation.json
 python3 -m offensive.purple_cli file-ingress red-receipt.json blue-observation.json
 ```
 

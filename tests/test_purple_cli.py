@@ -11,6 +11,7 @@ from offensive.purple import (
     authn_blue_objective,
     bola_blue_objective,
     file_ingress_blue_objective,
+    mass_assignment_blue_objective,
     state_change_blue_objective,
 )
 from offensive.purple_cli import (
@@ -61,7 +62,7 @@ def _receipt(technique: str = "bola") -> bytes:
             "final_state_verified": True,
             "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
         }
-    else:
+    elif technique == "file-ingress":
         experiment_id = "PURPLE-CLI-FILE-001"
         capability = "http-file-ingress-differential"
         steps = (
@@ -109,6 +110,32 @@ def _receipt(technique: str = "bola") -> bytes:
             },
             "observations": [{"step": step} for step in steps],
         }
+    else:
+        experiment_id = "PURPLE-CLI-MASS-001"
+        capability = "http-mass-assignment-differential"
+        steps = (
+            "BASELINE_READ",
+            "ALLOWED_FIELD_CONTROL",
+            "ALLOWED_CONTROL_READBACK",
+            "CONTROL_RESTORE",
+            "CONTROL_RESTORE_VERIFY",
+            "PROTECTED_FIELD_TEST",
+            "PROTECTED_TEST_READBACK",
+            "NEGATIVE_RESTORE",
+            "NEGATIVE_RESTORE_VERIFY",
+        )
+        objective = mass_assignment_blue_objective(experiment_id, steps)
+        extra = {
+            "request_count": 9,
+            "maximum_request_count": 9,
+            "method": "PATCH",
+            "observations": [{"step": step} for step in steps],
+            "control_outcome": "ALLOWED_FIELD_MUTATION_CONFIRMED",
+            "negative_outcome": "PROTECTED_FIELD_MUTATION_CONFIRMED",
+            "cleanup_status": "RESTORED_TO_BASELINE",
+            "final_state_verified": True,
+            "impact_assessment": "REQUIRES_HUMAN_CONTEXT",
+        }
     return json.dumps(
         {
             "experiment_id": experiment_id,
@@ -134,10 +161,16 @@ def _observation(technique: str = "bola", **overrides) -> bytes:
             "PURPLE-CLI-STATE-001",
             tuple(item["step"] for item in json.loads(_receipt(technique))["observations"]),
         )
-    else:
+    elif technique == "file-ingress":
         receipt = json.loads(_receipt(technique))
         objective = file_ingress_blue_objective(
             "PURPLE-CLI-FILE-001",
+            tuple(item["step"] for item in receipt["observations"]),
+        )
+    else:
+        receipt = json.loads(_receipt(technique))
+        objective = mass_assignment_blue_objective(
+            "PURPLE-CLI-MASS-001",
             tuple(item["step"] for item in receipt["observations"]),
         )
     value = {
@@ -186,7 +219,8 @@ def test_parser_rejects_unknown_duplicate_float_and_ambiguous_shapes():
 
 
 @pytest.mark.parametrize(
-    "technique", ["bola", "authn", "state-change", "file-ingress"]
+    "technique",
+    ["bola", "authn", "state-change", "file-ingress", "mass-assignment"],
 )
 def test_cli_evaluates_exact_inputs_and_records_source_hashes(
     technique, tmp_path, capsys

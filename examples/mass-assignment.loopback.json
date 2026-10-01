@@ -1,0 +1,23 @@
+{
+  "actor_principal_id": "low-privilege-actor",
+  "actor_token_env": "PANCITO_MASS_ACTOR_TOKEN",
+  "allowed_field": "display_name",
+  "authorization_reference": "replace-with-written-lab-scope-reference",
+  "authorized_by": "replace-with-authorizer",
+  "baseline_allowed_env": "PANCITO_MASS_BASE_ALLOWED",
+  "baseline_protected_env": "PANCITO_MASS_BASE_PROTECTED",
+  "control_allowed_env": "PANCITO_MASS_CONTROL_ALLOWED",
+  "experiment_id": "MASS-LOOPBACK-001",
+  "max_response_bytes": 16384,
+  "negative_allowed_env": "PANCITO_MASS_NEGATIVE_ALLOWED",
+  "negative_protected_env": "PANCITO_MASS_NEGATIVE_PROTECTED",
+  "observer_principal_id": "privileged-observer",
+  "observer_token_env": "PANCITO_MASS_OBSERVER_TOKEN",
+  "operator_acknowledged": true,
+  "protected_field": "role",
+  "readback_path": "/profiles/mine",
+  "resource_path": "/profiles/mine",
+  "schema_version": 1,
+  "target_origin": "http://127.0.0.1:8080",
+  "timeout_ms": 2000
+}

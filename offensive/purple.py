@@ -50,6 +50,17 @@ _FILE_INGRESS_ALL_STEPS = tuple(
     for cell in ("CONTROL", "TYPE_MISMATCH", "OVERSIZE")
     for suffix in ("UPLOAD", "READBACK", "CLEANUP", "CLEANUP_VERIFY")
 )
+_MASS_ASSIGNMENT_ALL_STEPS = (
+    "BASELINE_READ",
+    "ALLOWED_FIELD_CONTROL",
+    "ALLOWED_CONTROL_READBACK",
+    "CONTROL_RESTORE",
+    "CONTROL_RESTORE_VERIFY",
+    "PROTECTED_FIELD_TEST",
+    "PROTECTED_TEST_READBACK",
+    "NEGATIVE_RESTORE",
+    "NEGATIVE_RESTORE_VERIFY",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -69,6 +80,11 @@ _FILE_INGRESS_DETECTION_REQUIREMENT = (
     "Alert when stored upload bytes contradict the declared media type or exceed "
     "the authorized size policy. Required data: principal, route, filename, declared "
     "type, observed digest and size, validation decision, storage result, and status."
+)
+_MASS_ASSIGNMENT_DETECTION_REQUIREMENT = (
+    "Alert when a low-privilege principal changes a protected property. Required "
+    "data: subject, route, resource owner, submitted fields, authorized fields, "
+    "authorization decision, changed-field audit, and status."
 )
 
 
@@ -214,6 +230,39 @@ def file_ingress_blue_objective(
         "benign_twin_step": "CONTROL_UPLOAD",
         "correlation_marker_is_detection": False,
         "detection_requirement": _FILE_INGRESS_DETECTION_REQUIREMENT,
+    }
+
+
+def mass_assignment_blue_objective(
+    experiment_id: str, executed_steps: tuple[str, ...]
+) -> dict[str, object]:
+    """Declare Blue evidence for one property-authorization differential."""
+    if not isinstance(executed_steps, tuple) or not executed_steps:
+        raise BlueObservationError("mass-assignment executed_steps must be non-empty")
+    selected = set(executed_steps)
+    if len(selected) != len(executed_steps) or executed_steps != tuple(
+        step for step in _MASS_ASSIGNMENT_ALL_STEPS if step in selected
+    ):
+        raise BlueObservationError("mass-assignment executed_steps are invalid")
+    return {
+        "technique": "BROKEN_OBJECT_PROPERTY_LEVEL_AUTHORIZATION",
+        "attack_mapping": "OWASP_API3_2023",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(executed_steps),
+        "expected_event_count": len(executed_steps),
+        "maximum_event_count": len(_MASS_ASSIGNMENT_ALL_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with subject, route, submitted fields, and status",
+            "field-level authorization decision with the allowed property set",
+            "application audit record identifying actor and changed properties",
+        ],
+        "true_positive_step": "PROTECTED_FIELD_TEST",
+        "benign_twin_step": "ALLOWED_FIELD_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _MASS_ASSIGNMENT_DETECTION_REQUIREMENT,
     }
 
 
@@ -557,6 +606,77 @@ def evaluate_state_change_detection(
         technique="PUBLIC_STATE_CHANGE",
         declared_steps=steps,
         detection_requirement=_STATE_CHANGE_DETECTION_REQUIREMENT,
+    )
+
+
+def _mass_assignment_receipt_steps(receipt: dict[str, object]) -> tuple[str, ...]:
+    observations = receipt.get("observations")
+    if not isinstance(observations, list) or not observations:
+        raise BlueObservationError("mass-assignment receipt observations are invalid")
+    raw = [item.get("step") if isinstance(item, dict) else None for item in observations]
+    if any(not isinstance(step, str) for step in raw):
+        raise BlueObservationError("mass-assignment observation step is invalid")
+    steps = tuple(raw)
+    if steps not in {
+        _MASS_ASSIGNMENT_ALL_STEPS[:1],
+        _MASS_ASSIGNMENT_ALL_STEPS[:5],
+        _MASS_ASSIGNMENT_ALL_STEPS,
+    }:
+        raise BlueObservationError("mass-assignment receipt step order is invalid")
+    if receipt.get("request_count") != len(steps) or receipt.get(
+        "maximum_request_count"
+    ) != len(_MASS_ASSIGNMENT_ALL_STEPS):
+        raise BlueObservationError("mass-assignment request budget is inconsistent")
+    if receipt.get("method") != "PATCH":
+        raise BlueObservationError("mass-assignment receipt method is invalid")
+    if receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("mass-assignment receipt overclaims impact")
+    level = receipt.get("epistemic_level")
+    control = receipt.get("control_outcome")
+    negative = receipt.get("negative_outcome")
+    cleanup = receipt.get("cleanup_status")
+    final_verified = receipt.get("final_state_verified")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if (
+            steps != _MASS_ASSIGNMENT_ALL_STEPS
+            or control != "ALLOWED_FIELD_MUTATION_CONFIRMED"
+            or negative != "PROTECTED_FIELD_MUTATION_CONFIRMED"
+            or cleanup != "RESTORED_TO_BASELINE"
+            or final_verified is not True
+        ):
+            raise BlueObservationError("mass-assignment confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if (
+            steps != _MASS_ASSIGNMENT_ALL_STEPS
+            or control != "ALLOWED_FIELD_MUTATION_CONFIRMED"
+            or negative != "PROTECTED_FIELD_UNCHANGED"
+            or cleanup != "RESTORED_TO_BASELINE"
+            or final_verified is not True
+        ):
+            raise BlueObservationError("mass-assignment falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if cleanup == "MANUAL_ACTION_REQUIRED" and final_verified is not False:
+            raise BlueObservationError("mass-assignment cleanup state is inconsistent")
+    else:
+        raise BlueObservationError("mass-assignment epistemic level is invalid")
+    return steps
+
+
+def evaluate_mass_assignment_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence without changing the property-authz result."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("MASS_ASSIGNMENT receipt must be an object")
+    steps = _mass_assignment_receipt_steps(receipt)
+    return _evaluate_detection(
+        receipt,
+        observation,
+        receipt_name="MASS_ASSIGNMENT",
+        capability="http-mass-assignment-differential",
+        technique="BROKEN_OBJECT_PROPERTY_LEVEL_AUTHORIZATION",
+        declared_steps=steps,
+        detection_requirement=_MASS_ASSIGNMENT_DETECTION_REQUIREMENT,
     )
 
 

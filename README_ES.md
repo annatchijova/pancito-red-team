@@ -60,6 +60,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Diferencial BOLA | ¿Un principal autenticado puede leer el objeto de otro? | Controles owner/peer antes de una celda cross-principal |
 | Diferencial de autenticación | ¿Datos protegidos sobreviven credenciales ausentes o inválidas? | Un 2xx no alcanza sin observar el canario protegido |
 | Cambio de estado público | ¿Una identidad anónima o inválida puede mutar un campo? | Read-back autenticado y restauración verificada |
+| Mass assignment / BOPLA | ¿Un actor de bajo privilegio puede modificar una propiedad protegida? | Control sobre campo permitido, read-back del observador y restauración verificada de ambos campos |
 | Ingreso de archivos | ¿Storage acepta bytes incompatibles con tipo o tamaño? | Tres muestras inertes, digest/tamaño exactos y borrado verificado |
 | Diferencial de evasión forense | ¿Los sensores SIFT distinguen rastros conocidos de timestomp y borrado de logs frente a un control limpio? | Tres celdas sintéticas propias del módulo; ground truth exacto separado de observaciones no selladas |
 | Antiforense Prefetch | ¿SIFT distingue ejecución sospechosa y eliminación selectiva de Prefetch? | Control limpio de diez archivos más celdas fijas de ejecución y borrado; sólo archivos temporales inertes |
@@ -113,7 +114,8 @@ Para preparar el entorno y usar el servicio heredado opcional, ver
   presupuesto, custodia y oráculo Blue determinista.
 - Las suites de [BOLA](tests/test_bola_differential.py),
   [autenticación](tests/test_authn_differential.py),
-  [cambio de estado](tests/test_state_change_differential.py) e
+  [cambio de estado](tests/test_state_change_differential.py),
+  [mass assignment](tests/test_mass_assignment_differential.py) e
   [ingreso de archivos](tests/test_file_ingress_differential.py) prueban
   controles, celdas negativas y degradación honesta.
 - [Evaluación Purple](tests/test_purple_cli.py): liga las afirmaciones Blue a
