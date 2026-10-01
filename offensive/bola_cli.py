@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import errno
 import json
 import os
 import re
-import stat
 import sys
 import unicodedata
 from collections.abc import Mapping, Sequence
@@ -21,6 +19,7 @@ from offensive.bola import (
     BolaPlanError,
     run_bola_experiment,
 )
+from offensive.local_artifact import LocalArtifactError, read_bounded_regular_file
 
 
 _MAX_MANIFEST_BYTES = 65_536
@@ -253,33 +252,12 @@ def parse_bola_manifest(raw: bytes) -> BolaManifest:
 
 def read_bola_manifest(path: str | Path) -> BolaManifest:
     """Read a bounded regular file without following a final-component symlink."""
-    manifest_path = Path(path)
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    descriptor: int | None = None
     try:
-        descriptor = os.open(manifest_path, flags)
-        metadata = os.fstat(descriptor)
-    except OSError as exc:
-        if exc.errno == errno.ELOOP:
-            raise BolaManifestError("BOLA manifest path must not be a symlink") from exc
-        raise BolaManifestError(f"cannot inspect BOLA manifest: {exc}") from exc
-    try:
-        if not stat.S_ISREG(metadata.st_mode):
-            raise BolaManifestError("BOLA manifest path must be a regular file")
-        if metadata.st_size > _MAX_MANIFEST_BYTES:
-            raise BolaManifestError(
-                f"BOLA manifest exceeds {_MAX_MANIFEST_BYTES} bytes"
-            )
-        with os.fdopen(descriptor, "rb", closefd=True) as stream:
-            descriptor = None
-            raw = stream.read(_MAX_MANIFEST_BYTES + 1)
-    except OSError as exc:
-        raise BolaManifestError(f"cannot read BOLA manifest: {exc}") from exc
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
-    if len(raw) > _MAX_MANIFEST_BYTES:
-        raise BolaManifestError(f"BOLA manifest exceeds {_MAX_MANIFEST_BYTES} bytes")
+        raw = read_bounded_regular_file(
+            path, maximum_bytes=_MAX_MANIFEST_BYTES, label="BOLA manifest"
+        )
+    except LocalArtifactError as exc:
+        raise BolaManifestError(str(exc)) from exc
     return parse_bola_manifest(raw)
 
 
