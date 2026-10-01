@@ -148,6 +148,8 @@ def test_health_reports_the_fleets_unattended_work(client):
     assert health["autonomous_cycles"] >= 1
     assert health["commander_planner"] in ("gemini", "deterministic-fallback")
     assert health["llm_in_decision_path"] is False
+    assert health["kassandra"]["enabled"] is True
+    assert health["kassandra"]["affects_forensic_verdict"] is False
 
 
 def test_a_cycle_on_a_missing_case_is_a_404(client):
@@ -262,4 +264,7 @@ def test_the_injection_demo_surfaces_the_planted_line_and_a_sealed_malice(client
     assert planted, "the planted-instruction line came back empty"
     assert "CLASSIFICATION" in planted.upper() or "EDR-ANNOTATION" in planted.upper()
     assert body["sealed_verdict"]["state"] == "MALICE_HIGH"
+    assert body["kassandra"]["heartbeat_ok"] is True
+    assert body["kassandra"]["audit_chain_ok"] is True
+    assert body["kassandra"]["affects_forensic_verdict"] is False
     assert body.get("invariant")

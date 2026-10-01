@@ -1,4 +1,4 @@
-# AGENTS.md — working in the annaconda repo
+# AGENTS.md — working in the PANCITO-RED-TEAM repo
 
 Guidance for any AI coding agent (Claude Code, Cursor, or otherwise) with write
 access here. It tells you how to build, run, and test the project, and — more
@@ -12,6 +12,18 @@ attack unfolds and seals a reproducible, MITRE-mapped verdict a court could
 trust. A fleet of Google ADK + Gemini agents works cases **unattended** (choosing
 what to hunt, carrying a case's memory across weeks, escalating to a human when
 needed) — **but the language model is out of the decision path.**
+
+PANCITO-RED-TEAM adds an offensive-validation surface with one non-negotiable scope:
+every action exists to test a Blue control on an explicitly authorized target.
+Do not add free-form shell, payload, exploit, jailbreak, arbitrary URL/host, or
+model-authored execution. Offensive capabilities enter through a deterministic
+catalog and an authorization gate, and produce reproducible evidence receipts.
+
+Protocol Kassandra protects evidence-to-LLM channels but remains outside the
+forensic decision path. Its status is channel integrity only. Never translate a
+tripwire event into MALICE/BENIGN, a score, confidence, MITRE mapping, or a
+sealed value. When `VIGIA_ENFORCE_KASSANDRA_SALT=true`, missing
+`KASSANDRA_SALT` must prevent startup.
 
 ## The one invariant (do not break this)
 

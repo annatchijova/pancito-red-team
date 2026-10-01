@@ -1,14 +1,24 @@
 # Attributions
 
-annaconda builds on pre-existing open-source work. This file discloses what was
-incorporated, per the disclosure requirement of the All Things Agentic Hackathon
-(Google/Gemini): pre-existing code may be used as a foundation provided the
-submission discloses it and demonstrably builds upon it.
+PANCITO-RED-TEAM builds on pre-existing and third-party work. This file
+discloses what was incorporated, per the disclosure requirement of the All
+Things Agentic Hackathon (Google/Gemini): pre-existing code may be used as a
+foundation provided the submission discloses it and demonstrably builds upon
+it.
 
 The line between pre-existing and new: the **deterministic forensic core** is
 prior work (VIGÍA, below); everything that makes annaconda a live, agentic,
 Google-Cloud purple-team tool was **built for this submission** and is listed
 under "New in this submission".
+
+## Repository licensing scope
+
+Original PANCITO-RED-TEAM work is offered under PolyForm Strict 1.0.0. That
+license does not replace or narrow rights already granted for inherited and
+third-party material. The VIGÍA/annaconda portions identified below retain
+their [Apache-2.0 terms](LICENSES/Apache-2.0.txt), Camel-derived material
+retains its [MIT terms](LICENSES/Camel-MIT.txt), and Velociraptor remains a
+separate AGPLv3 program. See each upstream project for additional notices.
 
 ---
 
@@ -44,6 +54,15 @@ the line without guessing.
 
 Other prior projects (CRONOS, MNEME, raven-memory, MUTANTE) are **not** included
 in this submission and are not imported by any module here.
+
+### Protocol Kassandra — VIGÍA lineage (Apache-2.0)
+
+`agent/kassandra.py` is a PANCITO-RED-TEAM adaptation of the semantic-tripwire design
+from the author's VIGÍA repository. The adaptation deliberately changes the
+contract: Kassandra reports only evidence-to-LLM channel integrity and cannot
+produce a forensic verdict. It also uses domain-separated HMAC derivations,
+content-bound heartbeat state, exact external response verification, and a
+separate HMAC event chain.
 
 ---
 
@@ -89,6 +108,16 @@ ensemble (C#, MIT, © 2026 Allister Beharry), adapted to endpoint telemetry
 (rare-path, rare-destination, content-entropy detectors retained; the name/type
 detectors dropped as noise for this data). The nominator **nominates only** — it
 never produces a sealed value.
+
+### Strix — architectural reference only (Apache-2.0)
+
+<https://github.com/usestrix/strix>
+
+PANCITO-RED-TEAM borrows the product discipline of validating security findings with
+reproducible evidence and using a bounded catalogue of capabilities. No Strix
+source code is copied or imported. PANCITO-RED-TEAM does not inherit Strix's general
+shell, browser, exploit, or post-exploitation surface; its current offensive
+executor is replay-only and Blue-directed.
 
 ---
 

@@ -1,11 +1,11 @@
-# VIGIA — Google Cloud deployment
+# PANCITO-RED-TEAM — Google Cloud deployment
 
 Step-by-step spin-up for the live purple-team backend on Google Cloud Run.
 This is the deployed backend the demo video shows running on Google Cloud.
 
 ## What runs where
 
-- **Cloud Run** (`vigia-live`, region `us-central1`) hosts the FastAPI backend
+- **Cloud Run** (`pancito-red-team`, region `us-central1`) hosts the FastAPI backend
   (`service/app.py`): the deterministic forensic core + the ADK agent behind
   an HTTP API.
 - **Vertex AI** serves Gemini 3.5 Flash to the ADK agent, through the Cloud
@@ -26,7 +26,8 @@ Google Agent Framework (ADK), and a Google Cloud service (Cloud Run).
   gcloud services enable run.googleapis.com aiplatform.googleapis.com \
       cloudbuild.googleapis.com artifactregistry.googleapis.com \
       firestore.googleapis.com pubsub.googleapis.com \
-      cloudscheduler.googleapis.com --project vigia-497422
+      cloudscheduler.googleapis.com secretmanager.googleapis.com \
+      --project vigia-497422
   ```
 - A Firestore database, because that is where a case's mission memory and its
   two hash chains live between cycles. Without one the service still starts —
@@ -35,19 +36,34 @@ Google Agent Framework (ADK), and a Google Cloud service (Cloud Run).
   ```bash
   gcloud firestore databases create --location nam5 --project vigia-497422
   ```
+- A private Kassandra salt in Secret Manager. Do not put the salt directly in
+  a shell history, Cloud Run command line, image, or repository:
+  ```bash
+  openssl rand -hex 32 | gcloud secrets create pancito-kassandra-salt \
+    --data-file=- --replication-policy=automatic --project vigia-497422
+  ```
+  Grant the Cloud Run runtime service account
+  `roles/secretmanager.secretAccessor` on that secret before deployment.
 
 ## Deploy
 
 ```bash
-gcloud run deploy vigia-live \
+gcloud run deploy pancito-red-team \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
   --memory 1Gi --cpu 1 --timeout 300 \
   --set-env-vars GOOGLE_CLOUD_PROJECT=vigia-497422,\
-GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global \
+GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_LOCATION=global,\
+VIGIA_ENFORCE_KASSANDRA_SALT=true \
+  --set-secrets KASSANDRA_SALT=pancito-kassandra-salt:latest \
   --project vigia-497422
 ```
+
+Do not reuse the existing `vigia-live` service name: PANCITO-RED-TEAM is a separate
+lineage and must not replace the deployed annaconda/VIGÍA service implicitly.
+After deployment, `/health` must report both `"case_store":"firestore"` and
+`"kassandra":{"posture":"protected"}` before any evidence-to-model traffic.
 
 ### Gotcha: `GOOGLE_CLOUD_PROJECT` is not set for you
 
@@ -67,7 +83,7 @@ not regional ones. `GOOGLE_CLOUD_LOCATION=us-central1` yields a 404
 (the Cloud Run service itself still lives in `us-central1`). To change it on
 an existing service without a rebuild:
 ```bash
-gcloud run services update vigia-live --region us-central1 \
+gcloud run services update pancito-red-team --region us-central1 \
   --update-env-vars GOOGLE_CLOUD_LOCATION=global --project vigia-497422
 ```
 
@@ -89,7 +105,8 @@ are fixed in code. Two P3 items are operational and left to the deployment:
 
 ## Endpoints
 
-Live URL: `https://vigia-live-1028999311218.us-central1.run.app`
+Live URL: use the URL returned by the `pancito-red-team` deployment. This
+repository does not claim that PANCITO-RED-TEAM is already deployed.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -156,7 +173,7 @@ gcloud pubsub topics add-iam-policy-binding $TOPIC --project vigia-497422 \
 # Point Chronicle's feed at a subscription on $TOPIC; for a smoke test, a pull one:
 gcloud pubsub subscriptions create annaconda-secops-demo --topic $TOPIC --project vigia-497422
 
-gcloud run services update vigia-live --region us-central1 --project vigia-497422 \
+gcloud run services update pancito-red-team --region us-central1 --project vigia-497422 \
   --update-env-vars SECOPS_PUBSUB_TOPIC=$TOPIC
 ```
 
@@ -177,7 +194,7 @@ The image ships a clearly-labelled demonstration feed
 match the bundled attack scenario, so the enrichment is visible without a real MISP:
 
 ```bash
-gcloud run services update vigia-live --region us-central1 --project vigia-497422 \
+gcloud run services update pancito-red-team --region us-central1 --project vigia-497422 \
   --update-env-vars MISP_FEED_PATH=/app/demo/misp_demo_feed.json
 ```
 
@@ -205,7 +222,7 @@ By default a tasking may *assert* its department, and every cycle records that
 it was asserted. To require a verified Google identity token instead:
 
 ```bash
-gcloud run services update vigia-live --region us-central1 \
+gcloud run services update pancito-red-team --region us-central1 \
   --set-env-vars VIGIA_REQUIRE_AUTHENTICATED_PRINCIPAL=true,\
 VIGIA_DEPARTMENT_ROSTER="analyst@example.com:soc,ir-lead@example.com:incident-response",\
 VIGIA_EXPECTED_AUDIENCE="$URL"

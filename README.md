@@ -1,8 +1,58 @@
 <p align="center">
-  <img src="visual/logo.jpeg" alt="annaconda logo" width="600">
+  <img src="visual/logo.jpeg" alt="PANCITO-RED-TEAM project artwork" width="600">
 </p>
 
-# annaconda
+# PANCITO-RED-TEAM
+
+> **Research-use notice:** PANCITO-RED-TEAM is a research and adversarial
+> security testing toolkit. It is published for study, experimentation, and
+> non-commercial security research. Commercial use, redistribution, and
+> derivative works require a separate written license from the author.
+
+This notice summarizes the intended licensing posture; the complete
+[PolyForm Strict License 1.0.0](LICENSE) controls. In particular, its default
+permission does not include distributing the software or making changes or new
+works based on it. Third-party and inherited components identified in
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md) remain subject to their own licenses.
+
+## Authorized offensive validation, with Blue as the objective
+
+PANCITO-RED-TEAM evolves annaconda into a bounded adversary-validation system. It
+keeps VIGÍA's deterministic, court-defensible core and adds an offensive-facing
+workflow whose only permitted outcome is evidence that helps Blue verify a
+control. There is no free-form shell, payload, exploit, jailbreak, or caller-
+supplied verdict surface.
+
+The first complete level is deliberately narrow and real:
+
+- `offensive.replay` runs only committed attack-trace scenarios against the
+  actual sealed engine. Every run needs an explicit local authorization grant,
+  has a hard action budget, and produces a Blue validation receipt referencing
+  the real sealed verdict and custody chain.
+- Protocol Kassandra protects raw evidence crossing into an LLM with a private,
+  evidence-derived session nonce, dynamic delimiters, a semantic canary, a
+  content-bound hash heartbeat, and a separate HMAC audit chain.
+- Kassandra is not a detector of attacker identity and never emits or modifies
+  a forensic verdict. An inconsistent model response becomes
+  `KASSANDRA_PROTOCOL_VIOLATION / INTEGRITY_UNKNOWN`; it does not become
+  `MALICE`.
+
+Production must provide a private salt:
+
+```bash
+export KASSANDRA_SALT="$(openssl rand -hex 32)"
+export VIGIA_ENFORCE_KASSANDRA_SALT=true
+```
+
+Without the salt, `/health` reports `degraded-predictable`. With enforcement
+enabled and no salt, the ASGI application refuses to import, so the service
+does not start. See [`docs/PANCITO_DIRECTION.md`](docs/PANCITO_DIRECTION.md)
+for the threat model, trust boundaries, and next coherent levels.
+
+> Deployment status: the Cloud screenshots and `vigia-live` URL below document
+> the inherited annaconda baseline. They are not evidence that PANCITO-RED-TEAM
+> has been deployed. Use `DEPLOY.md` with the separate `pancito-red-team`
+> service name.
 
 ## Autonomous, live on Google Cloud
 
@@ -565,10 +615,12 @@ can move a sealed verdict.
 
 ## License & attributions
 
-Apache-2.0 — open source not because the hackathon requires it (it doesn't), but
-because forensic tooling that decides on people's lives should be inspectable by
-anyone. Pre-existing work this builds on is disclosed in
-[ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+Original PANCITO-RED-TEAM work is made available under the
+[PolyForm Strict License 1.0.0](LICENSE): non-commercial use is permitted;
+commercial use, redistribution, and derivative works require a separate written
+license from the author. This is a source-available license, not an OSI-approved
+open-source license. Pre-existing and third-party work is disclosed in
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md) and remains under its applicable license.
 
 ## Screenshots
 
