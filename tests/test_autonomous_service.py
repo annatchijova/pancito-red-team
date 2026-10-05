@@ -153,6 +153,39 @@ def test_health_reports_the_fleets_unattended_work(client):
     assert health["kassandra"]["affects_forensic_verdict"] is False
 
 
+def test_health_surfaces_honest_degradation_posture(client):
+    """AGENTS.md's fourth invariant at the endpoint: degradation is honest and
+    surfaced on /health. The service announces its in-memory fallback rather
+    than implying durable storage, keeps the model out of the decision path,
+    and states an explicit posture for every optional component instead of
+    omitting the ones that are unavailable."""
+    health = client.get("/health").json()
+
+    # The founding guarantees are stated plainly and never degrade.
+    assert health["sealed_verdicts"] is True
+    assert health["llm_in_decision_path"] is False
+
+    # Firestore is not configured in the harness: the memory fallback is
+    # announced, not hidden behind an implied durable store.
+    assert health["case_store"] == "memory"
+
+    # Kassandra reports channel-integrity posture only, never a forensic signal.
+    assert health["kassandra"]["affects_forensic_verdict"] is False
+    assert "fail_closed" in health["kassandra"]
+
+    # Every optional component states an explicit posture string — silence
+    # would be the dishonest option. secops_push is unavailable with no topic
+    # configured, and that unavailability is surfaced rather than omitted.
+    for component in ("threat_intel", "misp_feed", "secops_push", "tracing"):
+        assert isinstance(health[component], str) and health[component]
+    assert health["secops_push"] == "unavailable"
+
+    # When no model is reachable the planner says it fell back; it never
+    # pretends a model is in the loop.
+    if not health["model_available"]:
+        assert health["commander_planner"] == "deterministic-fallback"
+
+
 def test_a_cycle_on_a_missing_case_is_a_404(client):
     assert client.post("/cases/NOPE/cycle", json={}).status_code == 404
     assert client.get("/cases/NOPE/mission").status_code == 404

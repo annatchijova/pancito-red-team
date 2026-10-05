@@ -21,6 +21,27 @@ def test_forced_memory_backend_is_honest():
         del os.environ["VIGIA_CASE_BACKEND"]
 
 
+def test_firestore_failure_degrades_to_memory_rather_than_crashing(monkeypatch):
+    """Honest degradation at construction: when a project is configured but the
+    Firestore backend cannot be built, the factory falls back to the in-memory
+    store (announced elsewhere on /health) instead of crashing on first request.
+    """
+    import service.case_store as case_store
+
+    # The conftest autouse fixture forces memory; drop it so the factory takes
+    # the real durable-backend path and then hits the failure.
+    monkeypatch.delenv("VIGIA_CASE_BACKEND", raising=False)
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "test-project-unreachable")
+
+    def _unreachable(_project):
+        raise RuntimeError("Firestore client could not be constructed")
+
+    monkeypatch.setattr(case_store, "FirestoreCaseStore", _unreachable)
+
+    store = case_store.build_case_store()
+    assert store.backend == "memory"
+
+
 def test_worst_verdict_and_status_track_the_worst_run():
     store = MemoryCaseStore()
     store.create_case("C1", {"hostname": "H"}, "op")

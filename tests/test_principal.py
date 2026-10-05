@@ -146,6 +146,7 @@ def test_a_token_cannot_authenticate_without_a_configured_audience(monkeypatch):
     configured, a correctly signed token minted for a completely different
     service verifies — the confused-deputy case. An unverifiable token is
     treated as no token, per this module's own rule."""
+    pytest.importorskip("google.oauth2")  # patches the google-auth verifier
     monkeypatch.delenv(pr.AUDIENCE_ENV, raising=False)
     called = []
     monkeypatch.setattr(
@@ -156,6 +157,7 @@ def test_a_token_cannot_authenticate_without_a_configured_audience(monkeypatch):
 
 
 def test_a_configured_audience_is_passed_to_the_verifier(monkeypatch):
+    pytest.importorskip("google.oauth2")  # patches the google-auth verifier
     monkeypatch.setenv(pr.AUDIENCE_ENV, "https://vigia-live.example.com")
     seen = {}
 

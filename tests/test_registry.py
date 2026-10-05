@@ -48,6 +48,7 @@ def test_a_wrong_version_is_refused():
 
 
 def test_building_the_real_specialists_passes_the_gate():
+    pytest.importorskip("google.adk")  # build_specialist constructs an ADK Agent
     from agent.fleet import FLEET, build_specialist
     session = _session()
     for role in FLEET:
@@ -55,6 +56,7 @@ def test_building_the_real_specialists_passes_the_gate():
 
 
 def test_a_specialist_with_a_tampered_contract_is_refused_at_build():
+    pytest.importorskip("google.adk")  # the refusal is raised while building an ADK Agent
     from agent import fleet
     session = _session()
 

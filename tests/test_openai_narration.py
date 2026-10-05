@@ -5,6 +5,13 @@ from __future__ import annotations
 import sys
 from types import SimpleNamespace
 
+import pytest
+
+# These tests exercise the service's narration endpoint, which lives on FastAPI.
+# FastAPI is an optional service-layer dependency (not in the stdlib-only core),
+# so skip rather than error when it is absent.
+pytest.importorskip("fastapi")
+
 
 def test_openai_responses_api_narrates_only_an_already_sealed_verdict(
     monkeypatch,

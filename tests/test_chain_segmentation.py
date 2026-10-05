@@ -19,6 +19,11 @@ from agent import mission as mem
 from core.verdict_stream import verify_stream
 from service import chain_store
 
+# These tests drive the real FirestoreCaseStore against a double by monkeypatching
+# google.cloud.firestore.Client, so the module must be importable. It is an
+# optional service-layer dependency: skip rather than error when it is absent.
+pytest.importorskip("google.cloud.firestore")
+
 
 FIRESTORE_DOC_LIMIT = 1024 * 1024
 

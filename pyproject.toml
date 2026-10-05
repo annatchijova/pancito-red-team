@@ -20,8 +20,8 @@ Repository = "https://github.com/annatchijova/pancito-red-team"
 dev = ["pytest>=8"]
 
 [tool.setuptools]
-packages = ["agent", "core", "sift", "ml", "tools", "tools.velociraptor", "pipeline", "inference", "security", "verdict", "scripts_lib", "offensive"]
-py-modules = ["vigia_agent", "vigia_scorer", "sift_orchestrator_shim"]
+packages = ["agent", "core", "sift", "ml", "tools", "tools.velociraptor", "pipeline", "security", "verdict", "scripts_lib", "offensive"]
+py-modules = ["vigia_scorer"]
 
 [tool.setuptools.package-data]
 offensive = ["fixtures/attack/*.json"]
