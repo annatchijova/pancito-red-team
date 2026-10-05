@@ -20,9 +20,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-ASSERT_SUITES = [
-    "inference.abductive_reasoner_v2",
-]
+# Modules carrying an inline assert-suite run under `python -m <module>`. The
+# inherited inference.abductive_reasoner_v2 self-test lived here until that
+# module was retired with the standalone VIGÍA/SIFT chain; the deterministic
+# core is covered by its own tests plus the SMOKE_RUNS below.
+ASSERT_SUITES: list[str] = []
 
 SMOKE_RUNS = [
     "tools.caie",
