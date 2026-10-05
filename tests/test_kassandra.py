@@ -209,3 +209,32 @@ def test_missing_salt_fails_closed_when_enforced(monkeypatch):
     monkeypatch.setenv("VIGIA_ENFORCE_KASSANDRA_SALT", "true")
     with pytest.raises(KassandraConfigurationError, match="KASSANDRA_SALT"):
         load_kassandra_config()
+
+
+def test_service_fails_closed_at_startup_when_enforced_without_salt(monkeypatch):
+    """The AGENTS.md invariant lives at the *startup* boundary, not only in the
+    helper: ``service.app`` resolves the Kassandra posture while the ASGI
+    application is being constructed, so an enforced deployment with no salt must
+    fail to import. This pins the wiring — a refactor that moved, caught, or
+    swallowed the module-level check would pass ``load_kassandra_config`` above
+    and still be caught here.
+    """
+    import importlib
+    import sys
+
+    pytest.importorskip("fastapi")  # service.app imports FastAPI before the check
+
+    monkeypatch.delenv("KASSANDRA_SALT", raising=False)
+    monkeypatch.setenv("VIGIA_ENFORCE_KASSANDRA_SALT", "true")
+    monkeypatch.setenv("VIGIA_CASE_BACKEND", "memory")  # never touch real storage
+
+    # Force a fresh import so module-level resolution runs under the enforced
+    # posture rather than reusing an app another test already constructed.
+    # A failed import is not cached, and monkeypatch restores any prior module
+    # object on teardown, so later tests re-import a healthy service.app.
+    monkeypatch.delitem(sys.modules, "service.app", raising=False)
+
+    with pytest.raises(KassandraConfigurationError, match="KASSANDRA_SALT"):
+        importlib.import_module("service.app")
+
+    assert "service.app" not in sys.modules  # the construction fails closed
