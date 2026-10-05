@@ -73,6 +73,7 @@ def test_r3_2_memory_store_rejects_a_divergent_concurrent_run():
 # ---- R2-1: model-touching public routes are rate limited --------------------
 
 def test_r2_1_consult_and_sweep_are_rate_limited():
+    pytest.importorskip("fastapi")  # service endpoint; optional service-layer dep
     import service.app as app
     from fastapi.testclient import TestClient
 
