@@ -134,10 +134,12 @@ New offensive differentials are scoped from MIT- or BSD-3-Clause-licensed
 security tools, never from copyleft sources. `offensive/cors_misconfiguration.py`
 reimplements, in PANCITO's own bounded Red/Blue style, the arbitrary-origin
 reflection bug class that chenjj/CORScanner (MIT) tests for; `offensive/
-graphql_introspection.py` does the same for the introspection-exposure check
-in dolevf/graphql-cop (MIT). No source was copied from either. Reviewed
-commits, licenses, and which ideas are implemented versus still queued
-(graphql-cop's remaining checks, graphw00f, SSRFmap) are recorded in
+graphql_introspection.py` and `offensive/graphql_field_suggestion.py` do the
+same for two of dolevf/graphql-cop's (MIT) checks — schema introspection left
+enabled, and field-name suggestions in validation errors. No source was
+copied from any of them. Reviewed commits, licenses, and which ideas are
+implemented versus still queued (graphql-cop's batching/depth checks,
+graphw00f, SSRFmap) are recorded in
 [`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#vulnerability-class-idea-sources-mit--bsd-3-clause-only).
 
 ---

@@ -139,6 +139,10 @@ _GRAPHQL_INTROSPECTION_STEPS = (
     "BASELINE_TYPENAME_QUERY_CONTROL",
     "SCHEMA_INTROSPECTION_QUERY_TEST",
 )
+_GRAPHQL_FIELD_SUGGESTION_STEPS = (
+    "BASELINE_TYPENAME_QUERY_CONTROL",
+    "TYPO_FIELD_SUGGESTION_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -225,6 +229,11 @@ _GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT = (
     "explicitly allowed development/staging context. Required data: route, the "
     "query's operation name or a hash of its body, whether the response disclosed "
     "schema data, and status."
+)
+_GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT = (
+    "Alert when a GraphQL error response includes a field-name suggestion ('did you "
+    "mean') for an unauthenticated or otherwise untrusted caller. Required data: "
+    "route, a hash of the query body, the error message issued, and status."
 )
 
 
@@ -696,6 +705,31 @@ def graphql_introspection_blue_objective(experiment_id: str) -> dict[str, object
         "benign_twin_step": "BASELINE_TYPENAME_QUERY_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT,
+    }
+
+
+def graphql_field_suggestion_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one GraphQL field-suggestion-leakage differential."""
+    return {
+        "technique": "GRAPHQL_FIELD_SUGGESTION_LEAKS_SCHEMA_NAME",
+        "attack_mapping": "CWE_200_INFORMATION_EXPOSURE",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_QUERY_BODY_SHAPE",
+        "expected_steps": list(_GRAPHQL_FIELD_SUGGESTION_STEPS),
+        "expected_event_count": len(_GRAPHQL_FIELD_SUGGESTION_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and a hash or operation name "
+            "for the GraphQL query body",
+            "application log of the validation error issued for the malformed query, "
+            "including whether a field-name suggestion was included",
+        ],
+        "true_positive_step": "TYPO_FIELD_SUGGESTION_TEST",
+        "benign_twin_step": "BASELINE_TYPENAME_QUERY_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT,
     }
 
 
@@ -1743,6 +1777,49 @@ def evaluate_graphql_introspection_detection(
         technique="GRAPHQL_INTROSPECTION_LEFT_ENABLED",
         declared_steps=_GRAPHQL_INTROSPECTION_STEPS,
         detection_requirement=_GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_graphql_field_suggestion_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the GraphQL field-suggestion-leakage replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("GRAPHQL_FIELD_SUGGESTION receipt must be an object")
+    if receipt.get("request_count") != 2 or receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("graphql-field-suggestion request budget is inconsistent")
+    if receipt.get("method") != "POST" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("graphql-field-suggestion contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("graphql-field-suggestion controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "FIELD_SUGGESTION_DISCLOSED_SCHEMA_NAME":
+            raise BlueObservationError("graphql-field-suggestion confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason != "FIELD_SUGGESTION_SUPPRESSED":
+            raise BlueObservationError("graphql-field-suggestion falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BASELINE_CONTROL_FAILED", "BASELINE_RESPONSE_TRUNCATED",
+            "BASELINE_RESPONSE_UNPARSEABLE", "BASELINE_NOT_A_GRAPHQL_ENDPOINT",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED", "TEST_RESPONSE_UNPARSEABLE",
+        }:
+            raise BlueObservationError("graphql-field-suggestion inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("graphql-field-suggestion epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="GRAPHQL_FIELD_SUGGESTION",
+        capability="http-graphql-field-suggestion-leakage-differential",
+        technique="GRAPHQL_FIELD_SUGGESTION_LEAKS_SCHEMA_NAME",
+        declared_steps=_GRAPHQL_FIELD_SUGGESTION_STEPS,
+        detection_requirement=_GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT,
     )
 
 
