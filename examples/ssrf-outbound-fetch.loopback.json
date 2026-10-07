@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiment_id": "SSRF-OUTBOUND-FETCH-LOOPBACK-001",
+  "authorization_reference": "replace-with-written-loopback-authorization",
+  "authorized_by": "replace-with-authorizer-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "probe_path": "/fetch",
+  "url_parameter_name": "url",
+  "timeout_ms": 2000,
+  "canary_grace_ms": 300,
+  "max_response_bytes": 16384
+}

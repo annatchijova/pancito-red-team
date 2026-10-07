@@ -143,6 +143,10 @@ _GRAPHQL_FIELD_SUGGESTION_STEPS = (
     "BASELINE_TYPENAME_QUERY_CONTROL",
     "TYPO_FIELD_SUGGESTION_TEST",
 )
+_SSRF_OUTBOUND_FETCH_STEPS = (
+    "BASELINE_NO_PARAMETER_CONTROL",
+    "CANARY_URL_PARAMETER_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -234,6 +238,12 @@ _GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT = (
     "Alert when a GraphQL error response includes a field-name suggestion ('did you "
     "mean') for an unauthenticated or otherwise untrusted caller. Required data: "
     "route, a hash of the query body, the error message issued, and status."
+)
+_SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT = (
+    "Alert when the application's egress reaches a destination named by a request "
+    "parameter rather than a configured allowlist, especially a loopback, "
+    "link-local, or private-range destination. Required data: route, the "
+    "parameter name and value, the resolved outbound destination, and status."
 )
 
 
@@ -730,6 +740,30 @@ def graphql_field_suggestion_blue_objective(experiment_id: str) -> dict[str, obj
         "benign_twin_step": "BASELINE_TYPENAME_QUERY_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT,
+    }
+
+
+def ssrf_outbound_fetch_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one SSRF outbound-fetch canary differential."""
+    return {
+        "technique": "SERVER_SIDE_REQUEST_FORGERY_OUTBOUND_FETCH",
+        "attack_mapping": "CWE_918_SERVER_SIDE_REQUEST_FORGERY",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_URL_PARAMETER_PRESENCE",
+        "expected_steps": list(_SSRF_OUTBOUND_FETCH_STEPS),
+        "expected_event_count": len(_SSRF_OUTBOUND_FETCH_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and the URL parameter value received",
+            "egress/firewall log showing an outbound connection attempt to a "
+            "loopback or private-range destination for that request",
+        ],
+        "true_positive_step": "CANARY_URL_PARAMETER_TEST",
+        "benign_twin_step": "BASELINE_NO_PARAMETER_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT,
     }
 
 
@@ -1820,6 +1854,54 @@ def evaluate_graphql_field_suggestion_detection(
         technique="GRAPHQL_FIELD_SUGGESTION_LEAKS_SCHEMA_NAME",
         declared_steps=_GRAPHQL_FIELD_SUGGESTION_STEPS,
         detection_requirement=_GRAPHQL_FIELD_SUGGESTION_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_ssrf_outbound_fetch_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the SSRF outbound-fetch canary replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("SSRF_OUTBOUND_FETCH receipt must be an object")
+    if receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("ssrf-outbound-fetch request budget is inconsistent")
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if reason == "CANARY_RECEIVER_START_FAILED":
+        if level != "INCONCLUSIVE" or receipt.get("request_count") != 0:
+            raise BlueObservationError("ssrf-outbound-fetch canary-start result is inconsistent")
+    elif receipt.get("request_count") != 2:
+        raise BlueObservationError("ssrf-outbound-fetch request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("ssrf-outbound-fetch contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("ssrf-outbound-fetch controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "SSRF_OUTBOUND_FETCH_REACHED_CANARY":
+            raise BlueObservationError("ssrf-outbound-fetch confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason != "CANARY_NOT_REACHED":
+            raise BlueObservationError("ssrf-outbound-fetch falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "CANARY_RECEIVER_START_FAILED", "BASELINE_CONTROL_FAILED",
+            "BASELINE_RESPONSE_TRUNCATED", "BASELINE_CANARY_CONTAMINATED",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED",
+        }:
+            raise BlueObservationError("ssrf-outbound-fetch inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("ssrf-outbound-fetch epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="SSRF_OUTBOUND_FETCH",
+        capability="http-ssrf-outbound-fetch-differential",
+        technique="SERVER_SIDE_REQUEST_FORGERY_OUTBOUND_FETCH",
+        declared_steps=_SSRF_OUTBOUND_FETCH_STEPS,
+        detection_requirement=_SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT,
     )
 
 

@@ -136,10 +136,15 @@ reimplements, in PANCITO's own bounded Red/Blue style, the arbitrary-origin
 reflection bug class that chenjj/CORScanner (MIT) tests for; `offensive/
 graphql_introspection.py` and `offensive/graphql_field_suggestion.py` do the
 same for two of dolevf/graphql-cop's (MIT) checks — schema introspection left
-enabled, and field-name suggestions in validation errors. No source was
-copied from any of them. Reviewed commits, licenses, and which ideas are
-implemented versus still queued (graphql-cop's batching/depth checks,
-graphw00f, SSRFmap) are recorded in
+enabled, and field-name suggestions in validation errors. `offensive/
+ssrf_outbound_fetch.py` reimplements only the detection premise of
+swisskyrepo/SSRFmap (MIT) — that a server-side fetch can be steered to an
+attacker-named destination — using a self-hosted, ephemeral-port loopback
+canary receiver as the independent witness, not any of SSRFmap's
+exploitation modules. No source was copied from any of them. Reviewed
+commits, licenses, and which ideas are implemented versus still deferred
+(graphql-cop's batching/depth checks; graphw00f, deferred as fingerprinting
+rather than a security differential) are recorded in
 [`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#vulnerability-class-idea-sources-mit--bsd-3-clause-only).
 
 ---

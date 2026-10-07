@@ -25,6 +25,7 @@ from offensive.purple import (
     evaluate_cors_misconfiguration_detection,
     evaluate_graphql_introspection_detection,
     evaluate_graphql_field_suggestion_detection,
+    evaluate_ssrf_outbound_fetch_detection,
     evaluate_file_ingress_detection,
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
@@ -198,6 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "cors-misconfiguration",
             "graphql-introspection",
             "graphql-field-suggestion",
+            "ssrf-outbound-fetch",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -226,6 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "cors-misconfiguration": evaluate_cors_misconfiguration_detection,
             "graphql-introspection": evaluate_graphql_introspection_detection,
             "graphql-field-suggestion": evaluate_graphql_field_suggestion_detection,
+            "ssrf-outbound-fetch": evaluate_ssrf_outbound_fetch_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {
