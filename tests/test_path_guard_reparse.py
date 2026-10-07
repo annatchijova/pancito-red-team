@@ -17,8 +17,8 @@ rejected OUTSIDE_ALLOWLIST, and the same file reached through a junction planted
 inside the allowed directory validated VALID and ``safe_read()`` returned its
 contents.
 
-PathGuard guards evidence paths in sift/memory_forensics.py,
-sift/registry_timeline_reconstructor.py and sift/sift_orchestrator.py, whose
+PathGuard guards evidence paths in sift/memory_forensics.py and
+sift/registry_timeline_reconstructor.py, whose
 comment states "PathGuard sigue rechazando symlinks, TOCTOU" as the reason the
 allowlist can be widened safely. These tests exist so that claim is checked on
 the platform where it was false, and had no test coverage at all.

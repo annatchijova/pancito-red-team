@@ -230,6 +230,10 @@ class _MockSession:
 
 @pytest.fixture()
 def client(monkeypatch):
+    # The HTTP-path tests (A-3, A-7) run against the FastAPI app, an optional
+    # service-layer dependency. Skip them when it is absent rather than error;
+    # the A-1/A-2/A-5/A-6/A-8 tests in this module stay stdlib-only and run.
+    pytest.importorskip("fastapi")
     monkeypatch.setenv("VIGIA_CASE_BACKEND", "memory")
     monkeypatch.setenv("VIGIA_RATE_MAX", "500")
     from fastapi.testclient import TestClient

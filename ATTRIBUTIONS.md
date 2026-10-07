@@ -34,10 +34,14 @@ Incorporated subsystems:
   cross-artifact fracture detectors (temporal-causality, process-injection,
   log-vs-memory, etc.) that produce PANCITO's sealed replay verdicts,
   and the MITRE ATT&CK mapping (`tools/mitre_mapping.py`).
-- The 8-state quadripartite verdict (`verdict/quadripartite.py`) and the
-  abductive reasoner (`inference/`).
-- The SIFT analyzer suite (`sift/`) and the compatibility shim
-  (`sift_orchestrator_shim.py`).
+- The 8-state quadripartite verdict (`verdict/quadripartite.py`).
+- The SIFT analyzer suite (`sift/`): the forensic parsers and timeline
+  engine PANCITO's offensive forensic-evasion experiments exercise. The
+  standalone VIGÍA CLI (`vigia_agent.py`), its SIFT orchestrator and
+  compatibility shim, the abductive reasoner (`inference/`), and the
+  platform analyzers only that CLI reached were retired as unused by the
+  PANCITO surface; see git history (and the cleanup report) for the removed
+  set.
 - The security / Model Armor layer (`security/`): LLMShield (prompt-injection
   firewall), sandboxed subprocess execution, path/output boundary validation.
 - The LLM hallucination guard (`core/hallucination_guard.py`) — narrative

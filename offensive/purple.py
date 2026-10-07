@@ -63,6 +63,10 @@ _AUTHN_STEPS = (
     "ANONYMOUS_TEST",
     "INVALID_BEARER_TEST",
 )
+_RESOURCE_CONSUMPTION_STEPS = (
+    "WITHIN_LIMIT_CONTROL",
+    "OVER_LIMIT_TEST",
+)
 _STATE_CHANGE_STEPS = (
     "BASELINE_READ",
     "VALID_CREDENTIAL_CONTROL",
@@ -168,6 +172,12 @@ _AUTHN_DETECTION_REQUIREMENT = (
     "Alert when a protected route returns protected data after the authentication "
     "decision is anonymous or invalid. Required data: route, authentication outcome, "
     "principal if any, authorization decision, and status."
+)
+_RESOURCE_CONSUMPTION_DETECTION_REQUIREMENT = (
+    "Alert when request volume to a route from one principal or source exceeds "
+    "the declared limit without being throttled. Required data: principal or "
+    "source, route, per-window request count, rate-limit decision, response "
+    "status, and any Retry-After the control emitted."
 )
 _STATE_CHANGE_DETECTION_REQUIREMENT = (
     "Alert on a successful state mutation by an anonymous or invalid identity. "
@@ -423,6 +433,36 @@ def authn_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "VALID_CREDENTIAL_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _AUTHN_DETECTION_REQUIREMENT,
+    }
+
+
+def resource_consumption_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare the Blue hypothesis for a resource-consumption exercise.
+
+    The exercise has two logical phases (a within-limit control and an
+    over-limit burst), each a distinct step header value; the telemetry a SIEM
+    sees under the over-limit marker is a volume of events, correlated by the
+    step, not a fixed count. ``correlation_marker_is_detection`` stays false:
+    seeing the marker is not detecting the behavior.
+    """
+    return {
+        "technique": "UNRESTRICTED_RESOURCE_CONSUMPTION",
+        "attack_mapping": "UNMAPPED_API_WEAKNESS",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": "X-Pancito-Step",
+        "expected_steps": list(_RESOURCE_CONSUMPTION_STEPS),
+        "expected_event_count": len(_RESOURCE_CONSUMPTION_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "application access log with principal or source, route, and status",
+            "rate-limit decision log with per-window request count and any Retry-After",
+        ],
+        "detection_is_volume_based": True,
+        "true_positive_step": "OVER_LIMIT_TEST",
+        "benign_twin_step": "WITHIN_LIMIT_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _RESOURCE_CONSUMPTION_DETECTION_REQUIREMENT,
     }
 
 
@@ -1277,6 +1317,21 @@ def evaluate_authn_detection(
         technique="AUTHENTICATION_ENFORCEMENT_BYPASS",
         declared_steps=_AUTHN_STEPS,
         detection_requirement=_AUTHN_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_resource_consumption_detection(
+    resource_consumption_receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Compare rate-limit telemetry and alert evidence without changing Red evidence."""
+    return _evaluate_detection(
+        resource_consumption_receipt,
+        observation,
+        receipt_name="RESOURCE_CONSUMPTION",
+        capability="http-resource-consumption-differential",
+        technique="UNRESTRICTED_RESOURCE_CONSUMPTION",
+        declared_steps=_RESOURCE_CONSUMPTION_STEPS,
+        detection_requirement=_RESOURCE_CONSUMPTION_DETECTION_REQUIREMENT,
     )
 
 
