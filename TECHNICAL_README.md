@@ -110,6 +110,7 @@ backend degradation is exposed through `/health`.
 | [offensive/graphql_introspection.py](offensive/graphql_introspection.py) | 2 POSTs | `{__typename}` baseline confirms the endpoint actually behaves like GraphQL | The same endpoint is replayed with `{__schema{queryType{name}}}` | The parsed JSON body is walked structurally for `data.__schema.queryType.name`, never matched by the mere appearance of `__schema` in an error message; an endpoint that fails the baseline is reported inconclusive, not falsified |
 | [offensive/graphql_field_suggestion.py](offensive/graphql_field_suggestion.py) | 2 POSTs | `{__typename}` baseline confirms the endpoint actually behaves like GraphQL | The same endpoint is replayed with the deliberate typo `{__typenam}` | Confirmation requires the parsed error message to carry both a "did you mean" phrase and the exact real field name, never a bare mention of the name alone |
 | [offensive/ssrf_outbound_fetch.py](offensive/ssrf_outbound_fetch.py) | 2 GETs, plus one self-hosted loopback receiver for the experiment's duration | No-parameter baseline confirms the probe path is reachable and the receiver is uncontaminated | The same path is replayed with the URL parameter naming the receiver's own ephemeral port and an experiment-specific marker path | The receiver, not the target's response, is the oracle: confirmation requires it to have logged a request for the exact marker path within a bounded grace window after the test request completes |
+| [offensive/graphql_batching.py](offensive/graphql_batching.py) | 2 POSTs | `{__typename}` baseline confirms the endpoint actually behaves like GraphQL | The same endpoint is replayed with a JSON array of `batch_size` (capped 2-10) copies of the same query | Confirmation requires the response to be an array of exactly `batch_size` well-formed results; any other shape -- a single object, a shorter array, a malformed element -- falls back to falsified or inconclusive, never confirmed |
 | [offensive/file_ingress.py](offensive/file_ingress.py) | At most 12 bounded requests | Valid inert text stores exactly | Declared PNG mismatch and `limit + 1` bytes | DELETE plus authenticated 404/410 verification for every returned ID |
 | [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
 | [offensive/prefetch_evasion.py](offensive/prefetch_evasion.py) | Exactly 3 offline cells, zero requests | Ten inert SCCA-signature files | Suspicious executable name and reduced Prefetch set | Module-owned temporary directory is deleted automatically; no path is retained |
@@ -293,6 +294,9 @@ python3 -m offensive.graphql_field_suggestion_cli examples/graphql-field-suggest
 
 python3 -m offensive.ssrf_outbound_fetch_cli --dry-run examples/ssrf-outbound-fetch.loopback.json
 python3 -m offensive.ssrf_outbound_fetch_cli examples/ssrf-outbound-fetch.loopback.json
+
+python3 -m offensive.graphql_batching_cli --dry-run examples/graphql-batching.loopback.json
+python3 -m offensive.graphql_batching_cli examples/graphql-batching.loopback.json
 
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json

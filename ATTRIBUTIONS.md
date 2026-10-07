@@ -134,17 +134,20 @@ New offensive differentials are scoped from MIT- or BSD-3-Clause-licensed
 security tools, never from copyleft sources. `offensive/cors_misconfiguration.py`
 reimplements, in PANCITO's own bounded Red/Blue style, the arbitrary-origin
 reflection bug class that chenjj/CORScanner (MIT) tests for; `offensive/
-graphql_introspection.py` and `offensive/graphql_field_suggestion.py` do the
-same for two of dolevf/graphql-cop's (MIT) checks — schema introspection left
-enabled, and field-name suggestions in validation errors. `offensive/
-ssrf_outbound_fetch.py` reimplements only the detection premise of
+graphql_introspection.py`, `offensive/graphql_field_suggestion.py`, and
+`offensive/graphql_batching.py` do the same for three of dolevf/graphql-cop's
+(MIT) checks — schema introspection left enabled, field-name suggestions in
+validation errors, and batched operations accepted in one request.
+`offensive/ssrf_outbound_fetch.py` reimplements only the detection premise of
 swisskyrepo/SSRFmap (MIT) — that a server-side fetch can be steered to an
 attacker-named destination — using a self-hosted, ephemeral-port loopback
 canary receiver as the independent witness, not any of SSRFmap's
 exploitation modules. No source was copied from any of them. Reviewed
-commits, licenses, and which ideas are implemented versus still deferred
-(graphql-cop's batching/depth checks; graphw00f, deferred as fingerprinting
-rather than a security differential) are recorded in
+commits, licenses, and which ideas are implemented, deferred, or refuted
+before shipping (graphql-cop's query-depth check was found to have no safe
+schema-independent bounded probe and was dropped, not merely postponed;
+graphw00f is deferred as fingerprinting rather than a security differential)
+are recorded in
 [`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#vulnerability-class-idea-sources-mit--bsd-3-clause-only).
 
 ---

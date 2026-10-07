@@ -147,6 +147,10 @@ _SSRF_OUTBOUND_FETCH_STEPS = (
     "BASELINE_NO_PARAMETER_CONTROL",
     "CANARY_URL_PARAMETER_TEST",
 )
+_GRAPHQL_BATCHING_STEPS = (
+    "BASELINE_TYPENAME_QUERY_CONTROL",
+    "BATCHED_TYPENAME_QUERY_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -244,6 +248,12 @@ _SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT = (
     "parameter rather than a configured allowlist, especially a loopback, "
     "link-local, or private-range destination. Required data: route, the "
     "parameter name and value, the resolved outbound destination, and status."
+)
+_GRAPHQL_BATCHING_DETECTION_REQUIREMENT = (
+    "Alert when a single HTTP request to a GraphQL endpoint carries an array-shaped "
+    "body (multiple operations batched into one request), especially from an "
+    "unauthenticated or rate-limit-relevant caller. Required data: route, the "
+    "number of operations in the batch, and status."
 )
 
 
@@ -764,6 +774,31 @@ def ssrf_outbound_fetch_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BASELINE_NO_PARAMETER_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT,
+    }
+
+
+def graphql_batching_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one GraphQL batching-exposure differential."""
+    return {
+        "technique": "GRAPHQL_BATCHING_ACCEPTED",
+        "attack_mapping": "CWE_799_IMPROPER_CONTROL_OF_INTERACTION_FREQUENCY",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_BODY_SHAPE",
+        "expected_steps": list(_GRAPHQL_BATCHING_STEPS),
+        "expected_event_count": len(_GRAPHQL_BATCHING_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and whether the request body "
+            "was array-shaped",
+            "application/rate-limit log showing whether the batch was counted as "
+            "one request or as multiple operations",
+        ],
+        "true_positive_step": "BATCHED_TYPENAME_QUERY_TEST",
+        "benign_twin_step": "BASELINE_TYPENAME_QUERY_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _GRAPHQL_BATCHING_DETECTION_REQUIREMENT,
     }
 
 
@@ -1902,6 +1937,50 @@ def evaluate_ssrf_outbound_fetch_detection(
         technique="SERVER_SIDE_REQUEST_FORGERY_OUTBOUND_FETCH",
         declared_steps=_SSRF_OUTBOUND_FETCH_STEPS,
         detection_requirement=_SSRF_OUTBOUND_FETCH_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_graphql_batching_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the GraphQL batching-exposure replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("GRAPHQL_BATCHING receipt must be an object")
+    if receipt.get("request_count") != 2 or receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("graphql-batching request budget is inconsistent")
+    if receipt.get("method") != "POST" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("graphql-batching contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("graphql-batching controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "BATCHING_ACCEPTED":
+            raise BlueObservationError("graphql-batching confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason != "BATCHING_REJECTED":
+            raise BlueObservationError("graphql-batching falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BASELINE_CONTROL_FAILED", "BASELINE_RESPONSE_TRUNCATED",
+            "BASELINE_RESPONSE_UNPARSEABLE", "BASELINE_NOT_A_GRAPHQL_ENDPOINT",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED", "TEST_RESPONSE_UNPARSEABLE",
+            "TEST_BATCH_RESPONSE_MALFORMED",
+        }:
+            raise BlueObservationError("graphql-batching inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("graphql-batching epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="GRAPHQL_BATCHING",
+        capability="http-graphql-batching-exposure-differential",
+        technique="GRAPHQL_BATCHING_ACCEPTED",
+        declared_steps=_GRAPHQL_BATCHING_STEPS,
+        detection_requirement=_GRAPHQL_BATCHING_DETECTION_REQUIREMENT,
     )
 
 

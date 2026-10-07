@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "experiment_id": "GRAPHQL-BATCHING-LOOPBACK-001",
+  "authorization_reference": "replace-with-written-loopback-authorization",
+  "authorized_by": "replace-with-authorizer-name",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:8080",
+  "endpoint_path": "/graphql",
+  "batch_size": 3,
+  "timeout_ms": 2000,
+  "max_response_bytes": 16384
+}

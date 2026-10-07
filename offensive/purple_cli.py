@@ -26,6 +26,7 @@ from offensive.purple import (
     evaluate_graphql_introspection_detection,
     evaluate_graphql_field_suggestion_detection,
     evaluate_ssrf_outbound_fetch_detection,
+    evaluate_graphql_batching_detection,
     evaluate_file_ingress_detection,
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
@@ -200,6 +201,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "graphql-introspection",
             "graphql-field-suggestion",
             "ssrf-outbound-fetch",
+            "graphql-batching",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -229,6 +231,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "graphql-introspection": evaluate_graphql_introspection_detection,
             "graphql-field-suggestion": evaluate_graphql_field_suggestion_detection,
             "ssrf-outbound-fetch": evaluate_ssrf_outbound_fetch_detection,
+            "graphql-batching": evaluate_graphql_batching_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {
