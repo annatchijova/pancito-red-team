@@ -123,6 +123,10 @@ _STALE_AUTHORITY_ALLOWED_SEQUENCES = frozenset(
         _STALE_AUTHORITY_ALL_STEPS,
     }
 )
+_FORWARDED_REDIRECT_STEPS = (
+    "BASELINE_REDIRECT_CONTROL",
+    "FORWARDED_HEADER_REDIRECT_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -184,6 +188,12 @@ _STALE_AUTHORITY_DETECTION_REQUIREMENT = (
     "Alert when a credential accesses a protected resource after its principal's "
     "role or membership was revoked. Required data: principal, credential/session "
     "identifier, authority version, revocation event, route, decision, and status."
+)
+_FORWARDED_REDIRECT_DETECTION_REQUIREMENT = (
+    "Alert when a redirect's resolved authority differs from the request's own "
+    "canonical origin and a forwarded or Host header was present and unvalidated. "
+    "Required data: route, forwarded header name and value, resolved Location "
+    "authority, the application's canonical origin, and status."
 )
 
 
@@ -552,6 +562,30 @@ def stale_authority_blue_objective(
         "benign_twin_step": "ACTOR_PRE_REVOKE_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _STALE_AUTHORITY_DETECTION_REQUIREMENT,
+    }
+
+
+def forwarded_redirect_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one forwarded-metadata redirect-authority differential."""
+    return {
+        "technique": "FORWARDED_METADATA_TRUST_REDIRECT_AUTHORITY",
+        "attack_mapping": "CWE_601_UNVALIDATED_FORWARDED_REDIRECT",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_HEADER_PRESENCE",
+        "expected_steps": list(_FORWARDED_REDIRECT_STEPS),
+        "expected_event_count": len(_FORWARDED_REDIRECT_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and the Location header issued",
+            "edge/proxy log with the client-supplied Host and X-Forwarded-Proto "
+            "values for that request",
+        ],
+        "true_positive_step": "FORWARDED_HEADER_REDIRECT_TEST",
+        "benign_twin_step": "BASELINE_REDIRECT_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _FORWARDED_REDIRECT_DETECTION_REQUIREMENT,
     }
 
 
@@ -1449,6 +1483,52 @@ def evaluate_stale_authority_detection(
         capability="http-stale-authority-differential",
         technique="STALE_AUTHORITY_AFTER_REVOCATION", declared_steps=steps,
         detection_requirement=_STALE_AUTHORITY_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_forwarded_redirect_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the forwarded-header redirect-authority replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("FORWARDED_REDIRECT receipt must be an object")
+    if receipt.get("request_count") != 2 or receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("forwarded-redirect request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("forwarded-redirect contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("forwarded-redirect controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "FORWARDED_HEADER_BECAME_REDIRECT_AUTHORITY":
+            raise BlueObservationError("forwarded-redirect confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason not in {
+            "TEST_NOT_REDIRECTED", "TEST_REDIRECT_HAS_NO_AUTHORITY",
+            "FORWARDED_HEADER_REJECTED_OR_IGNORED",
+        }:
+            raise BlueObservationError("forwarded-redirect falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BASELINE_CONTROL_FAILED", "BASELINE_RESPONSE_TRUNCATED", "BASELINE_ALREADY_EXTERNAL",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED", "TEST_LOCATION_UNPARSEABLE",
+            "TEST_ORACLE_NOT_SATISFIED",
+        }:
+            raise BlueObservationError("forwarded-redirect inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("forwarded-redirect epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="FORWARDED_REDIRECT",
+        capability="http-forwarded-redirect-authority-differential",
+        technique="FORWARDED_METADATA_TRUST_REDIRECT_AUTHORITY",
+        declared_steps=_FORWARDED_REDIRECT_STEPS,
+        detection_requirement=_FORWARDED_REDIRECT_DETECTION_REQUIREMENT,
     )
 
 

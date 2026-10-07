@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "experiment_id": "VPNHP-GLOBALPROTECT-CONTROL-001",
+  "authorization_reference": "loopback-clone-of-public-oss-repo-merabytes-vpn-honeypots-local-analysis",
+  "authorized_by": "Anna Tchijova",
+  "operator_acknowledged": true,
+  "target_origin": "http://127.0.0.1:18491",
+  "redirect_path": "/cualquier-ruta-no-reconocida",
+  "forwarded_header_name": "X-Forwarded-Proto",
+  "canary_host": "pancito-demo-canary.invalid",
+  "timeout_ms": 2000,
+  "max_response_bytes": 16384
+}
