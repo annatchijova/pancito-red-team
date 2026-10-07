@@ -135,6 +135,10 @@ _CORS_MISCONFIGURATION_STEPS = (
     "BASELINE_NO_ORIGIN_CONTROL",
     "CANARY_ORIGIN_REFLECTION_TEST",
 )
+_GRAPHQL_INTROSPECTION_STEPS = (
+    "BASELINE_TYPENAME_QUERY_CONTROL",
+    "SCHEMA_INTROSPECTION_QUERY_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -215,6 +219,12 @@ _CORS_MISCONFIGURATION_DETECTION_REQUIREMENT = (
     "Access-Control-Allow-Credentials: true. Required data: route, request Origin, "
     "the Access-Control-Allow-Origin and Access-Control-Allow-Credentials values "
     "issued, and status."
+)
+_GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT = (
+    "Alert when a GraphQL endpoint answers a query containing __schema outside an "
+    "explicitly allowed development/staging context. Required data: route, the "
+    "query's operation name or a hash of its body, whether the response disclosed "
+    "schema data, and status."
 )
 
 
@@ -661,6 +671,31 @@ def cors_misconfiguration_blue_objective(experiment_id: str) -> dict[str, object
         "benign_twin_step": "BASELINE_NO_ORIGIN_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _CORS_MISCONFIGURATION_DETECTION_REQUIREMENT,
+    }
+
+
+def graphql_introspection_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one GraphQL introspection-exposure differential."""
+    return {
+        "technique": "GRAPHQL_INTROSPECTION_LEFT_ENABLED",
+        "attack_mapping": "CWE_200_INFORMATION_EXPOSURE",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_QUERY_BODY_SHAPE",
+        "expected_steps": list(_GRAPHQL_INTROSPECTION_STEPS),
+        "expected_event_count": len(_GRAPHQL_INTROSPECTION_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and a hash or operation name "
+            "for the GraphQL query body",
+            "application log indicating whether the introspection query resolved "
+            "or was rejected by a middleware/validation rule",
+        ],
+        "true_positive_step": "SCHEMA_INTROSPECTION_QUERY_TEST",
+        "benign_twin_step": "BASELINE_TYPENAME_QUERY_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT,
     }
 
 
@@ -1665,6 +1700,49 @@ def evaluate_cors_misconfiguration_detection(
         technique="ARBITRARY_ORIGIN_TRUSTED_BY_CORS_REFLECTION",
         declared_steps=_CORS_MISCONFIGURATION_STEPS,
         detection_requirement=_CORS_MISCONFIGURATION_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_graphql_introspection_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the GraphQL introspection-exposure replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("GRAPHQL_INTROSPECTION receipt must be an object")
+    if receipt.get("request_count") != 2 or receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("graphql-introspection request budget is inconsistent")
+    if receipt.get("method") != "POST" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("graphql-introspection contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("graphql-introspection controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "INTROSPECTION_SCHEMA_DISCLOSED":
+            raise BlueObservationError("graphql-introspection confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason != "INTROSPECTION_REJECTED_OR_DISABLED":
+            raise BlueObservationError("graphql-introspection falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BASELINE_CONTROL_FAILED", "BASELINE_RESPONSE_TRUNCATED",
+            "BASELINE_RESPONSE_UNPARSEABLE", "BASELINE_NOT_A_GRAPHQL_ENDPOINT",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED", "TEST_RESPONSE_UNPARSEABLE",
+        }:
+            raise BlueObservationError("graphql-introspection inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("graphql-introspection epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="GRAPHQL_INTROSPECTION",
+        capability="http-graphql-introspection-exposure-differential",
+        technique="GRAPHQL_INTROSPECTION_LEFT_ENABLED",
+        declared_steps=_GRAPHQL_INTROSPECTION_STEPS,
+        detection_requirement=_GRAPHQL_INTROSPECTION_DETECTION_REQUIREMENT,
     )
 
 

@@ -107,6 +107,7 @@ backend degradation is exposed through `/health`.
 | [offensive/stale_authority.py](offensive/stale_authority.py) | At most 7 bounded requests | Active membership and same-token protected read | Admin revokes membership, verifies it, then replays the pre-issued token | Compensating role restore plus authenticated state verification gates any conclusion |
 | [offensive/forwarded_redirect.py](offensive/forwarded_redirect.py) | 2 GETs | No-header baseline establishes the redirect's own-origin authority (or absence) | The same path is replayed with a canary-bearing `Host` or `X-Forwarded-Proto` | The resolved authority comes from a real URL parser on the Location header, never a substring match; an already-external baseline is reported inconclusive, not confirmed |
 | [offensive/cors_misconfiguration.py](offensive/cors_misconfiguration.py) | 2 GETs | No-Origin baseline establishes the probe path answers cleanly | The same path is replayed with a canary `Origin` header | Access-Control-Allow-Origin is matched against the canary with a real origin parser, never a substring match; the literal wildcard falsifies the candidate rather than confirming it, and credential exposure is reported as a separate field |
+| [offensive/graphql_introspection.py](offensive/graphql_introspection.py) | 2 POSTs | `{__typename}` baseline confirms the endpoint actually behaves like GraphQL | The same endpoint is replayed with `{__schema{queryType{name}}}` | The parsed JSON body is walked structurally for `data.__schema.queryType.name`, never matched by the mere appearance of `__schema` in an error message; an endpoint that fails the baseline is reported inconclusive, not falsified |
 | [offensive/file_ingress.py](offensive/file_ingress.py) | At most 12 bounded requests | Valid inert text stores exactly | Declared PNG mismatch and `limit + 1` bytes | DELETE plus authenticated 404/410 verification for every returned ID |
 | [offensive/forensic_evasion.py](offensive/forensic_evasion.py) | Exactly 3 offline cells, zero requests | Coherent NTFS timestamps plus benign event sequence | `$SI`/`$FN` mismatch and logon→audit-log-clear chain | Exact ground truth is compared with targeted SIFT observations; receipt is explicitly unsealed |
 | [offensive/prefetch_evasion.py](offensive/prefetch_evasion.py) | Exactly 3 offline cells, zero requests | Ten inert SCCA-signature files | Suspicious executable name and reduced Prefetch set | Module-owned temporary directory is deleted automatically; no path is retained |
@@ -281,6 +282,9 @@ python3 -m offensive.forwarded_redirect_cli examples/forwarded-redirect.loopback
 
 python3 -m offensive.cors_misconfiguration_cli --dry-run examples/cors-misconfiguration.loopback.json
 python3 -m offensive.cors_misconfiguration_cli examples/cors-misconfiguration.loopback.json
+
+python3 -m offensive.graphql_introspection_cli --dry-run examples/graphql-introspection.loopback.json
+python3 -m offensive.graphql_introspection_cli examples/graphql-introspection.loopback.json
 
 python3 -m offensive.authn_cli --dry-run authn-plan.json
 python3 -m offensive.authn_cli authn-plan.json

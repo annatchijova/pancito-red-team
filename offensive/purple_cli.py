@@ -23,6 +23,7 @@ from offensive.purple import (
     evaluate_async_export_authz_detection,
     evaluate_forwarded_redirect_detection,
     evaluate_cors_misconfiguration_detection,
+    evaluate_graphql_introspection_detection,
     evaluate_file_ingress_detection,
     evaluate_mass_assignment_detection,
     evaluate_nested_bola_detection,
@@ -194,6 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "async-export-authz",
             "forwarded-redirect",
             "cors-misconfiguration",
+            "graphql-introspection",
         ),
     )
     parser.add_argument("red_receipt", help="Path to the Red experiment receipt")
@@ -220,6 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "async-export-authz": evaluate_async_export_authz_detection,
             "forwarded-redirect": evaluate_forwarded_redirect_detection,
             "cors-misconfiguration": evaluate_cors_misconfiguration_detection,
+            "graphql-introspection": evaluate_graphql_introspection_detection,
         }[args.technique]
         evaluation = evaluator(receipt, observation)
         result = {
