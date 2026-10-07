@@ -128,6 +128,16 @@ to this repository; no upstream source files were copied. RedTeamAgent had no
 license file in the reviewed tree and is treated as an architectural reference
 only.
 
+### Vulnerability-class research — CORS, GraphQL, SSRF (MIT / BSD-3-Clause)
+
+New offensive differentials are scoped from MIT- or BSD-3-Clause-licensed
+security tools, never from copyleft sources. `offensive/cors_misconfiguration.py`
+reimplements, in PANCITO's own bounded Red/Blue style, the arbitrary-origin
+reflection bug class that chenjj/CORScanner (MIT) tests for — no source was
+copied. Reviewed commits, licenses, and which ideas are implemented versus
+still queued (graphql-cop, graphw00f, SSRFmap) are recorded in
+[`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#vulnerability-class-idea-sources-mit--bsd-3-clause-only).
+
 ---
 
 ## Models

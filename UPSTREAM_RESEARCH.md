@@ -45,6 +45,24 @@ has sealed the verdict and its custody chain has verified. Its states are:
 This oracle is deterministic, stdlib-only, and outside the forensic verdict. It
 records whether execution succeeded separately from what the evidence proved.
 
+## Vulnerability-class idea sources (MIT / BSD-3-Clause only)
+
+Studied on 2026-10-07 while scoping new bounded differentials for the offensive
+catalogue. Same rule as above: ideas and bug classes only, no source copied.
+Restricted to permissive licenses (MIT, BSD-3-Clause) that do not narrow
+PANCITO's own PolyForm Strict terms — copyleft sources (GPL, AGPL) are excluded
+from this list even when the technique is well known.
+
+| Project | Reviewed commit | License observed | Bug class / idea | PANCITO application |
+|---|---|---|---|---|
+| [CORScanner](https://github.com/chenjj/CORScanner) | `593043f836a158246fc6a13a89a5a1401cbff0b5` | MIT | Server reflects an arbitrary request `Origin` into `Access-Control-Allow-Origin` instead of checking an allowlist, sometimes paired with `Access-Control-Allow-Credentials: true`; wildcard and null-origin variants | Implemented as `offensive/cors_misconfiguration.py` — a bounded two-request differential (no-Origin baseline, canary-Origin test) with an exact-origin-match oracle, never a substring check |
+| [graphql-cop](https://github.com/dolevf/graphql-cop) | `2b7e086efae672f28b419c7fcdfe6b48d846c9dc` | MIT | GraphQL introspection left enabled, field-suggestion schema leakage, batching/query-depth with no cost limit | Evaluated, not yet implemented. Narrower applicability than CORS (only targets exposing a GraphQL endpoint) |
+| [graphw00f](https://github.com/dolevf/graphw00f) | `4901f824140a2da168876412593c213afbdd75fb` | BSD-3-Clause | Fingerprinting which GraphQL engine is running from error-message and behavioral differentials | Evaluated as a companion to graphql-cop for a future GraphQL module; not yet implemented |
+| [SSRFmap](https://github.com/swisskyrepo/SSRFmap) | `290e07d75c52d68e021b6d0b4200c2a41ea20365` | MIT | Server-side outbound fetch reaches an attacker-controlled destination (cloud metadata, internal services) via an unvalidated URL parameter | Evaluated, not yet implemented. Needs a self-hosted canary receiver (same pattern as the forwarded-redirect lab) and more careful bounding before it is safe to ship |
+
+Excluded from this list after review: Corsy (CORS scanner, GPL-3.0) and
+jwt_tool (JWT testing, GPL-3.0) — same bug classes, incompatible license.
+
 ## Deliberately deferred
 
 - General shell, browser, payload, exploit, arbitrary URL, and post-exploitation

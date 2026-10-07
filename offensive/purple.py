@@ -131,6 +131,10 @@ _FORWARDED_REDIRECT_STEPS = (
     "BASELINE_REDIRECT_CONTROL",
     "FORWARDED_HEADER_REDIRECT_TEST",
 )
+_CORS_MISCONFIGURATION_STEPS = (
+    "BASELINE_NO_ORIGIN_CONTROL",
+    "CANARY_ORIGIN_REFLECTION_TEST",
+)
 _BOLA_DETECTION_REQUIREMENT = (
     "Alert on an allowed object read where the authenticated subject is not "
     "authorized for the resolved object owner or tenant. Required data: subject, "
@@ -204,6 +208,13 @@ _FORWARDED_REDIRECT_DETECTION_REQUIREMENT = (
     "canonical origin and a forwarded or Host header was present and unvalidated. "
     "Required data: route, forwarded header name and value, resolved Location "
     "authority, the application's canonical origin, and status."
+)
+_CORS_MISCONFIGURATION_DETECTION_REQUIREMENT = (
+    "Alert when Access-Control-Allow-Origin echoes a request Origin that is not on "
+    "a configured allowlist, especially when paired with "
+    "Access-Control-Allow-Credentials: true. Required data: route, request Origin, "
+    "the Access-Control-Allow-Origin and Access-Control-Allow-Credentials values "
+    "issued, and status."
 )
 
 
@@ -626,6 +637,30 @@ def forwarded_redirect_blue_objective(experiment_id: str) -> dict[str, object]:
         "benign_twin_step": "BASELINE_REDIRECT_CONTROL",
         "correlation_marker_is_detection": False,
         "detection_requirement": _FORWARDED_REDIRECT_DETECTION_REQUIREMENT,
+    }
+
+
+def cors_misconfiguration_blue_objective(experiment_id: str) -> dict[str, object]:
+    """Declare Blue evidence for one CORS canary-origin reflection differential."""
+    return {
+        "technique": "ARBITRARY_ORIGIN_TRUSTED_BY_CORS_REFLECTION",
+        "attack_mapping": "CWE_942_PERMISSIVE_CROSS_DOMAIN_POLICY",
+        "exercise_marker": exercise_marker(experiment_id),
+        "marker_header": "X-Pancito-Exercise",
+        "step_header": None,
+        "step_identification": "REQUEST_ORDER_ORIGIN_HEADER_PRESENCE",
+        "expected_steps": list(_CORS_MISCONFIGURATION_STEPS),
+        "expected_event_count": len(_CORS_MISCONFIGURATION_STEPS),
+        "expected_telemetry_status": "HYPOTHESIS_NOT_YET_OBSERVED",
+        "expected_telemetry": [
+            "access log with route, response status, and the request Origin received",
+            "access log with the Access-Control-Allow-Origin and "
+            "Access-Control-Allow-Credentials values issued for that request",
+        ],
+        "true_positive_step": "CANARY_ORIGIN_REFLECTION_TEST",
+        "benign_twin_step": "BASELINE_NO_ORIGIN_CONTROL",
+        "correlation_marker_is_detection": False,
+        "detection_requirement": _CORS_MISCONFIGURATION_DETECTION_REQUIREMENT,
     }
 
 
@@ -1584,6 +1619,52 @@ def evaluate_forwarded_redirect_detection(
         technique="FORWARDED_METADATA_TRUST_REDIRECT_AUTHORITY",
         declared_steps=_FORWARDED_REDIRECT_STEPS,
         detection_requirement=_FORWARDED_REDIRECT_DETECTION_REQUIREMENT,
+    )
+
+
+def evaluate_cors_misconfiguration_detection(
+    receipt: dict[str, object], observation: BlueObservation
+) -> dict[str, object]:
+    """Evaluate Blue evidence for the CORS canary-origin reflection replay."""
+    if not isinstance(receipt, dict):
+        raise BlueObservationError("CORS_MISCONFIGURATION receipt must be an object")
+    if receipt.get("request_count") != 2 or receipt.get("maximum_request_count") != 2:
+        raise BlueObservationError("cors-misconfiguration request budget is inconsistent")
+    if receipt.get("method") != "GET" or receipt.get("impact_assessment") != "REQUIRES_HUMAN_CONTEXT":
+        raise BlueObservationError("cors-misconfiguration contract is inconsistent")
+    controls = receipt.get("controls")
+    if (
+        not isinstance(controls, dict)
+        or set(controls) != {"baseline_control_passed"}
+        or not isinstance(controls.get("baseline_control_passed"), bool)
+    ):
+        raise BlueObservationError("cors-misconfiguration controls are inconsistent")
+    baseline_passed = controls["baseline_control_passed"]
+    if not isinstance(receipt.get("credentials_exposed"), bool):
+        raise BlueObservationError("cors-misconfiguration credentials_exposed is inconsistent")
+    level, reason = receipt.get("epistemic_level"), receipt.get("reason_code")
+    if level == "CONFIRMED_BY_INDUCTION":
+        if not baseline_passed or reason != "ARBITRARY_ORIGIN_REFLECTED":
+            raise BlueObservationError("cors-misconfiguration confirmed result is inconsistent")
+    elif level == "FALSIFIED":
+        if not baseline_passed or reason not in {
+            "CORS_ORIGIN_NOT_REFLECTED", "CORS_WILDCARD_NOT_ORIGIN_SPECIFIC",
+        }:
+            raise BlueObservationError("cors-misconfiguration falsified result is inconsistent")
+    elif level == "INCONCLUSIVE":
+        if reason not in {
+            "BASELINE_CONTROL_FAILED", "BASELINE_RESPONSE_TRUNCATED",
+            "TEST_REQUEST_FAILED", "TEST_RESPONSE_TRUNCATED", "TEST_ORIGIN_UNPARSEABLE",
+        }:
+            raise BlueObservationError("cors-misconfiguration inconclusive result is inconsistent")
+    else:
+        raise BlueObservationError("cors-misconfiguration epistemic level is invalid")
+    return _evaluate_detection(
+        receipt, observation, receipt_name="CORS_MISCONFIGURATION",
+        capability="http-cors-origin-trust-differential",
+        technique="ARBITRARY_ORIGIN_TRUSTED_BY_CORS_REFLECTION",
+        declared_steps=_CORS_MISCONFIGURATION_STEPS,
+        detection_requirement=_CORS_MISCONFIGURATION_DETECTION_REQUIREMENT,
     )
 
 
