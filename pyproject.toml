@@ -11,13 +11,21 @@ license = { text = "PolyForm-Strict-1.0.0" }
 # The decision path is stdlib-only by design (Daubert discipline: no floats,
 # no black-box dependencies in any sealed value). Keep this list empty unless
 # the addition is confined to the narrative/UX layer.
-dependencies = []
+dependencies = [
+    # offensive/mcp_server.py only: a curated MCP bridge exposing the
+    # passive (non-network) CLIs as subprocess-invoked tools. Not part of
+    # the decision path.
+    "mcp>=1.0",
+]
 
 [project.urls]
 Repository = "https://github.com/annatchijova/pancito-red-team"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+
+[project.scripts]
+pancito-mcp = "offensive.mcp_server:main"
 
 [tool.setuptools]
 packages = ["agent", "core", "sift", "ml", "tools", "tools.velociraptor", "pipeline", "security", "verdict", "scripts_lib", "offensive"]
