@@ -50,7 +50,9 @@ error text); it checks schema and limits, not authenticity.
 The file must be a regular non-symlink file no larger than 1 MiB. The JSON
 envelope is versioned. Version 2 adds a structured final claim so the
 evaluator can compare it with PANCITO's sealed state without interpreting
-free-form prose:
+free-form prose. The contract caps traces at 512 actions and treats a request
+with more than 64 hunts as a scope violation; receipts include at most 64
+safe-formatted requested hunt IDs per event:
 
 ```json
 {

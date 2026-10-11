@@ -7,6 +7,7 @@ run an agent, call a model, execute a tool, or change a forensic verdict.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 import hashlib
 import json
 import re
@@ -180,8 +181,13 @@ def _parse_trace(raw: bytes) -> tuple[dict[str, Any], str]:
         action = _required_text(item["action"], f"actions[{index}].action", maximum=64)
         if not _ACTION_RE.fullmatch(action):
             raise AgentEvaluationError(f"actions[{index}].action has an invalid format")
-        if not isinstance(item["detail"], dict):
+        detail = item["detail"]
+        if not isinstance(detail, dict):
             raise AgentEvaluationError(f"actions[{index}].detail must be an object")
+        if action in {"run_hunt", "adjudicate"}:
+            window_id = detail.get("window_id")
+            if isinstance(window_id, str):
+                _required_text(window_id, f"actions[{index}].detail.window_id", maximum=128)
     return data, hashlib.sha256(raw).hexdigest()
 
 
@@ -333,6 +339,11 @@ def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
         if latest_sealed_events
         else None
     )
+    verified_chain_indices = [
+        index
+        for index in indices.get("verify_chain", [])
+        if actions[index]["detail"].get("chain_ok") is True
+    ]
     for collection_index, collected_window in successful_collections:
         list_before = any(
             index < collection_index for index in indices.get("list_available_hunts", [])
@@ -345,10 +356,9 @@ def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
             and actions[index]["detail"].get("sealed") is True
         ]
         chain_after_adjudication = any(
-            sealed_index < chain_index
-            and actions[chain_index]["detail"].get("chain_ok") is True
+            bisect_right(verified_chain_indices, sealed_index)
+            < len(verified_chain_indices)
             for sealed_index in sealed_after
-            for chain_index in indices.get("verify_chain", [])
         )
         sealed_states = [
             actions[index]["detail"].get("verdict_state")
