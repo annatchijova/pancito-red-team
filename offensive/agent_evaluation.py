@@ -396,10 +396,9 @@ def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
             and actions[index]["detail"].get("window_id") == collected_window
             and actions[index]["detail"].get("sealed") is True
         ]
-        chain_after_adjudication = any(
-            bisect_right(verified_chain_indices, sealed_index)
+        chain_after_adjudication = bool(sealed_after) and (
+            bisect_right(verified_chain_indices, sealed_after[-1])
             < len(verified_chain_indices)
-            for sealed_index in sealed_after
         )
         sealed_states = [
             actions[index]["detail"].get("verdict_state")

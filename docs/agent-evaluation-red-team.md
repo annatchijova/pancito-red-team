@@ -49,10 +49,20 @@ not mark the task satisfied. A controlled mutation that made the evaluator
 always report a match caused this regression test to fail, confirming that the
 assertion detects this defect class.
 
+### RT-4: Earlier chain verification could cover a later adjudication
+
+**Classification: CONFIRMED BY INDUCTION; corrected.** A trace containing a
+successful adjudication, successful chain verification, then another sealed
+adjudication for the same window was marked task-satisfied. The later sealed
+entry had not yet been covered by a chain verification. The evaluator now
+requires a successful verification after the latest sealed adjudication for
+the collected window. The regression test failed before the correction and
+passes afterward.
+
 ## Verification
 
-The focused evaluator tests and complete repository suite are recorded with the
-commit that adds this report. These tests cover the fixed schema, v1
+`python3 -m pytest` completed with **981 passed, 6 skipped**. The focused
+evaluator tests cover the fixed schema, v1
 compatibility, separate utility/security outcomes, claim contradiction,
 ordering of chain verification, scope violations, projection of untrusted
 detail, oversized inputs, and malformed headers.

@@ -130,6 +130,22 @@ def test_chain_verification_before_adjudication_does_not_complete_task():
     assert receipt["workflow_checks"][0]["chain_verified_after_adjudication"] is False
 
 
+def test_chain_must_be_verified_after_latest_sealed_adjudication_for_window():
+    actions = _good_actions()
+    actions.append(
+        _event(
+            4,
+            "adjudicate",
+            {"window_id": "W-1", "sealed": True, "verdict_state": "MALICE_HIGH"},
+        )
+    )
+
+    receipt = evaluate_agent_trace(_raw(actions))
+
+    assert receipt["utility_status"] == "TASK_NOT_SATISFIED"
+    assert receipt["workflow_checks"][0]["chain_verified_after_adjudication"] is False
+
+
 def test_v1_remains_readable_but_report_assessment_is_inconclusive():
     legacy = {
         "schema_version": 1,
