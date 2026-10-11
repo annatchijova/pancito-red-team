@@ -5,14 +5,15 @@ Date: 2026-10-11
 ## Scope and threat model
 
 This review covers `offensive/agent_evaluation.py`, its trace builder, and the
-CLI boundary that reads an operator-supplied trace. The findings RT-4 through
-RT-6 were reproduced against `feat/agentdojo-atomic-curation` at
-`6daf8d6cd92aec8b78ee9acd2cb49637ef24dd3a` before their fixes. An attacker may
-influence values copied from an audit trail and may supply a serialized trace
-to the evaluator. The reviewer does not assume control of the Python process,
-trusted source code, or the verdict-chain implementation. The evaluator is an
-offline receipt generator; it is not an execution boundary and does not
-authenticate audit-trail provenance.
+CLI boundary that reads an operator-supplied trace. Reproduction baselines:
+RT-4 against `0b9fe1d`; RT-5 and RT-6 against
+`6daf8d6cd92aec8b78ee9acd2cb49637ef24dd3a`; RT-7 and RT-8 against
+`f5e316d8b526e1ea4c903260fedf6280f0e375ed`, each before its fix. An attacker
+may influence values copied from an audit trail and may supply a serialized
+trace to the evaluator. The reviewer does not assume control of the Python
+process, trusted source code, or the verdict-chain implementation. The
+evaluator is an offline receipt generator; it is not an execution boundary and
+does not authenticate audit-trail provenance.
 
 ## Findings
 
@@ -45,8 +46,10 @@ behavior absent an independently authenticated source.
 ### RT-3: A reported claim that differs from the latest sealed adjudication
 is detected
 
-**Classification: CONFIRMED BY INDUCTION.** The adversarial test supplies a
-later sealed state that contradicts `final_claim`; evaluation reports
+**Epistemic level: CONFIRMED BY INDUCTION. Bucket: evaluator correctness.**
+Under the threat model where a supplied trace contains multiple sealed states,
+the adversarial test supplies a later sealed state that contradicts
+`final_claim`; evaluation reports
 `CONTRADICTS_SEALED_VERDICT`, records `SEALED_VERDICT_CONTRADICTION`, and does
 not mark the task satisfied. A controlled mutation that made the evaluator
 always report a match caused this regression test to fail, confirming that the
@@ -91,6 +94,19 @@ not catch this malformed input. The reproduction returned `ValueError` and
 now normalized after the explicit `AgentEvaluationError` handler, and a
 regression test pins the public error type.
 
+### RT-8: Hunt-list separators were missing from the pre-serialization budget
+
+**Severity: Low. Epistemic level: CONFIRMED BY INDUCTION. Bucket: resource
+boundary defect.** Under the threat model where a caller supplies many
+maximum-length hunt IDs, the builder's estimate counted each encoded string
+but undercounted JSON commas and brackets. A reproducible input with 13 lists
+of 512 IDs and one list of 208 IDs produced 900,084 bytes while the configured
+budget was 900,000. The 1 MiB parser limit still stopped larger traces, so this
+was a narrow builder-budget violation rather than an unbounded allocation. The
+builder now includes conservative list punctuation in its estimate;
+`test_trace_builder_budget_includes_json_list_separators` failed before the
+fix and passes afterward.
+
 ### RT-7: A later sealed window escaped the final chain-verification check
 
 **Severity: Low. Epistemic level: CONFIRMED BY INDUCTION. Bucket: software
@@ -108,16 +124,23 @@ window restores the satisfied result.
 
 ## Verification
 
-Discarded vectors: bounded deeply nested JSON was rejected by the parser's
-`RecursionError` handling; duplicate keys are rejected by the object hook;
-neither produced a second confirmed issue. Trace authenticity remains an
-explicit limitation (RT-2), because the wrapper has no authenticated source to
-verify.
+Runtime: Python 3.12.3. A seeded 15,000-case parser exercise (10,000 random
+byte strings and 5,000 generated structured traces) produced no unexpected
+exceptions; 43 inputs were accepted as traces. A 10,000-level nested JSON
+document was rejected as `AgentEvaluationError`, and duplicate keys are
+covered by the focused malformed-header test.
 
-Test integrity: chain-order, cross-window freshness, and overlong-retained-text
-cases were observed failing before their respective fixes. A hand mutation
-removing the text bound made the targeted test fail. A mutation removing the
-integer parse normalization made its test fail with raw `ValueError`. The
-pre-change full suite was **981 passed, 6 skipped**; the post-change full suite
-completed with **985 passed, 6 skipped**. These tests do not prove trace
-provenance, real agent behavior, or that a trace is complete.
+Discarded vectors: 2,000 levels of nesting did not exercise the recursion
+guard, but the 10,000-level input did. The 1 MiB trace cap bounds raw parser
+input; the builder now independently enforces its 900,000-byte estimate.
+Trace authenticity remains an explicit limitation (RT-2), because the wrapper
+has no authenticated source to verify.
+
+Test integrity: chain-order, cross-window freshness, overlong-retained-text,
+and list-separator cases were observed failing before their respective fixes.
+A hand mutation removing the text bound made the targeted test fail. A mutation
+removing the integer parse normalization made its test fail with raw
+`ValueError`. The pre-change full suite was **981 passed, 6 skipped**; after
+all current code and regression changes it completed with **986 passed, 6
+skipped**. These tests do not prove trace provenance, real agent behavior, or
+that a trace is complete.

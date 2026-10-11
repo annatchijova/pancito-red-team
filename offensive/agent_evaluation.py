@@ -256,7 +256,7 @@ def build_agent_trace(
                     )
                 projected_size += sum(
                     len(json.dumps(hunt, ensure_ascii=True)) for hunt in hunt_ids
-                ) + 32
+                ) + (2 * len(hunt_ids)) + 2
                 retained["hunt_ids"] = hunt_ids
             if action == "run_hunt" and "window_id" in detail:
                 retained["window_id"] = detail["window_id"]

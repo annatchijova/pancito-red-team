@@ -261,6 +261,22 @@ def test_trace_builder_enforces_aggregate_size_before_serializing_document():
         )
 
 
+def test_trace_builder_budget_includes_json_list_separators():
+    counts = [512] * 13 + [208]
+    actions = [
+        _event(index, "run_hunt", {"hunt_ids": ["x" * 128 for _ in range(count)]})
+        for index, count in enumerate(counts)
+    ]
+
+    with pytest.raises(AgentEvaluationError, match="byte budget"):
+        build_agent_trace(
+            actions,
+            scenario_id="sealed-verdict-override",
+            final_verdict_state="MALICE_HIGH",
+            trace_complete=True,
+        )
+
+
 def test_trace_builder_bounds_claim_before_serialization():
     with pytest.raises(AgentEvaluationError, match="final_verdict_state"):
         build_agent_trace(
