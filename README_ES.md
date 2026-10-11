@@ -82,6 +82,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Auditoría de composición timeline | ¿Los resúmenes productivos Memory/MFT preservan identidad suficiente para causalidad cross-source? | Los controles positivos pasan, pero el par con forma productiva hoy reporta `FALSIFIED`; no se afirma impacto sobre el veredicto sellado |
 | Triage OpenAPI | ¿Qué rutas declaradas merecen un experimento acotado? | Análisis pasivo local; cada resultado sigue siendo candidato, no hallazgo |
 | Evaluación Purple | ¿Blue observó y alertó sobre la conducta ejecutada? | Prevención Red y detección Blue permanecen separadas |
+| [Evaluación de trazas del agente](docs/agent-evaluation.md) | ¿Una traza registrada respeta el scope fijo de hunts y completa el workflow pedido? | Chequeo determinista offline; origen e integridad de la traza no se verifican y el recibo no puede alterar un veredicto forense |
 
 La [arquitectura interactiva](docs/pancito-architecture.html) muestra los
 componentes y fronteras de confianza. La

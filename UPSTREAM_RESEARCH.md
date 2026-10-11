@@ -4,6 +4,22 @@ Studied on 2026-10-01. Commit hashes pin the exact source reviewed. PANCITO
 uses the architectural ideas listed here; no source files from these projects
 were copied into this repository.
 
+## Agent evaluation and technique reference (MIT)
+
+Reviewed on 2026-10-10 from shallow local clones. Exact commits pin the trees
+examined. Both repositories contain MIT license files at those commits.
+
+| Project | Reviewed commit | Pattern examined | PANCITO curation |
+|---|---|---|---|
+| [AgentDojo](https://github.com/ethz-spylab/agentdojo) | `089ed468cf3ed0322acc66b0211f26d9d90dbf60` | Benchmark separates task utility from security under prompt injection; task-specific state predicates determine outcomes | `offensive/agent_evaluation.py` implements one fixed, recorded-trace scenario with separate utility/security states. It reads PANCITO's audit-action shape, uses a deterministic predicate, and labels trace completeness as an unverified operator assertion. No agent, model, or tool executes. |
+| [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) | `388942adbd9641f4dfdcf079d7efe9a75ec0ac43` | Atomic metadata associates ATT&CK technique IDs and tests; the reviewed technique YAML also contains executable commands and cleanup steps | `offensive/replay.py` records only technique IDs T1055.012 and T1070.006 as references for PANCITO's independently authored synthetic telemetry. No Atomic YAML, code, tests, fixture data, commands, or cleanup steps were copied or executed. |
+
+The evaluator is exposed as `pancito-agent-evaluate` and consumes a bounded
+local JSON trace. A SHA-256 digest identifies the supplied bytes but does not
+authenticate them or establish that the trace is complete. The evaluation
+receipt has no authority over PANCITO's sealed forensic verdict. See
+[`docs/agent-evaluation.md`](docs/agent-evaluation.md) for the input contract.
+
 | Project | Reviewed commit | License observed | Useful pattern | PANCITO application |
 |---|---|---|---|---|
 | [AgentSploit](https://github.com/agentsploit/agentsploit) | `fc251ad4240a48ec443177d958543c1c01645c78` | Apache-2.0 plus NOTICE | File-backed authorization with a source digest; capability paths treated as hypotheses that require verification | Engagement artifacts now carry both byte-level and semantic SHA-256 identities. A future level can map PANCITO's closed capabilities without granting execution authority. |

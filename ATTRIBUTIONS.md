@@ -150,6 +150,20 @@ graphw00f is deferred as fingerprinting rather than a security differential)
 are recorded in
 [`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#vulnerability-class-idea-sources-mit--bsd-3-clause-only).
 
+### AgentDojo and Atomic Red Team — MIT (design and technique references)
+
+PANCITO-RED-TEAM used [AgentDojo](https://github.com/ethz-spylab/agentdojo)
+(MIT, reviewed commit `089ed468cf3ed0322acc66b0211f26d9d90dbf60`) and
+[Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (MIT,
+reviewed commit `388942adbd9641f4dfdcf079d7efe9a75ec0ac43`) as research inputs.
+AgentDojo informed the offline evaluator's separate task-utility and
+policy-security outcomes. Atomic Red Team informed ATT&CK technique references
+for PANCITO's existing synthetic replay scenario. No source code, tests, data
+fixtures, or executable Atomic commands were copied; Atomic commands were not
+executed. The evaluator consumes operator-supplied traces, does not run a model,
+and is not part of a forensic verdict. The pinned reviews and limitations are
+documented in [`UPSTREAM_RESEARCH.md`](UPSTREAM_RESEARCH.md#agent-evaluation-and-technique-reference-mit).
+
 ---
 
 ## Models

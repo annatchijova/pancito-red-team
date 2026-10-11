@@ -82,6 +82,7 @@ agentic security product uses the first design.
 | Timeline composition audit | Do production Memory/MFT summaries preserve enough identity for cross-source causality? | Positive controls pass, but the production-shaped pair currently reports `FALSIFIED`; no sealed-verdict impact is claimed |
 | OpenAPI triage | Which declared routes deserve a bounded follow-up experiment? | Passive local artifact analysis; every result remains a candidate, never a finding |
 | Purple evaluation | Did Blue observe and alert on the exact executed behavior? | Red prevention and Blue detection remain separate conclusions |
+| [Agent-trace evaluation](docs/agent-evaluation.md) | Does a recorded tool trace stay within the fixed hunt scope and complete the requested workflow? | Offline deterministic check; trace origin and completeness remain unverified, and its receipt cannot affect a forensic verdict |
 
 See the [interactive architecture](docs/pancito-architecture.html) for the
 component and trust-boundary view. Its source-evidence specification is

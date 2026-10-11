@@ -34,6 +34,14 @@ _SCENARIOS: dict[str, dict[str, Any]] = {
         "hunts": ("pslist", "netstat"),
         "expected_techniques": ("T1055.012", "T1070.006"),
         "expected_state_prefix": "MALICE",
+        "technique_reference": {
+            "repository": "https://github.com/redcanaryco/atomic-red-team",
+            "reviewed_commit": "388942adbd9641f4dfdcf079d7efe9a75ec0ac43",
+            "license_observed": "MIT",
+            "technique_ids": ("T1055.012", "T1070.006"),
+            "source_code_copied": False,
+            "source_commands_executed": False,
+        },
     },
 }
 
@@ -95,6 +103,7 @@ def scenario_catalog() -> list[dict[str, Any]]:
             "description": spec["description"],
             "execution_mode": "replay-only",
             "expected_techniques": list(spec["expected_techniques"]),
+            "technique_reference": dict(spec["technique_reference"]),
         }
         for scenario_id, spec in sorted(_SCENARIOS.items())
     ]
