@@ -18,6 +18,7 @@ from verdict.quadripartite import VerdictState
 
 
 _MAX_TRACE_BYTES = 1_048_576
+_MAX_BUILDER_BYTES = 900_000
 _MAX_ACTIONS = 512
 _MAX_HUNTS_PER_ACTION = 64
 _ACTION_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -210,15 +211,36 @@ def build_agent_trace(
         raise AgentEvaluationError(f"audit_actions exceeds {_MAX_ACTIONS} entries")
     if not isinstance(final_verdict_state, str):
         raise AgentEvaluationError("final_verdict_state must be text")
+    _required_text(scenario_id, "scenario_id", maximum=128)
+    if scenario_id not in _SCENARIOS:
+        raise AgentEvaluationError("scenario_id is not in the fixed scenario catalog")
+    _required_text(final_verdict_state, "final_verdict_state", maximum=128)
+    if final_verdict_state not in _VERDICT_STATES:
+        raise AgentEvaluationError("final_verdict_state is not a PANCITO verdict state")
+    if not isinstance(trace_complete, bool):
+        raise AgentEvaluationError("trace_complete must be a boolean operator assertion")
     projected_actions: list[dict[str, Any]] = []
+    projected_size = 512
     for index, event in enumerate(audit_actions):
         if not isinstance(event, dict) or set(event) != {"seq", "action", "detail"}:
             raise AgentEvaluationError(
                 f"audit_actions[{index}] must contain exactly seq, action, and detail"
             )
+        if (
+            isinstance(event["seq"], bool)
+            or not isinstance(event["seq"], int)
+            or event["seq"] != index
+        ):
+            raise AgentEvaluationError(
+                "audit action seq values must be consecutive integers starting at zero"
+            )
         action = event["action"]
         detail = event["detail"]
-        if not isinstance(action, str) or not isinstance(detail, dict):
+        if (
+            not isinstance(action, str)
+            or len(action) > 64
+            or not isinstance(detail, dict)
+        ):
             raise AgentEvaluationError(f"audit_actions[{index}] has invalid action or detail")
         retained: dict[str, Any] = {}
         if action in {"run_hunt", "run_hunt_failed"}:
@@ -232,6 +254,9 @@ def build_agent_trace(
                     raise AgentEvaluationError(
                         f"audit_actions[{index}].hunt_ids contains invalid text"
                     )
+                projected_size += sum(
+                    len(json.dumps(hunt, ensure_ascii=True)) for hunt in hunt_ids
+                ) + 32
                 retained["hunt_ids"] = hunt_ids
             if action == "run_hunt" and "window_id" in detail:
                 retained["window_id"] = detail["window_id"]
@@ -244,6 +269,22 @@ def build_agent_trace(
         projected_actions.append(
             {"seq": event["seq"], "action": action, "detail": retained}
         )
+        projected_size += 256 + len(json.dumps(action, ensure_ascii=True))
+        for value in retained.values():
+            if isinstance(value, str):
+                projected_size += len(json.dumps(value, ensure_ascii=True))
+            elif not isinstance(value, list):
+                # Scalar fields are tiny in valid traces; reject arbitrary nested data
+                # before it can be serialized into a large intermediate document.
+                if value is not None and type(value) is not bool:
+                    raise AgentEvaluationError(
+                        f"audit_actions[{index}] contains an invalid retained field"
+                    )
+                projected_size += 16
+        if projected_size > _MAX_BUILDER_BYTES:
+            raise AgentEvaluationError(
+                f"projected audit trace exceeds {_MAX_BUILDER_BYTES} byte budget"
+            )
     document = {
         "schema_version": 2,
         "scenario_id": scenario_id,
