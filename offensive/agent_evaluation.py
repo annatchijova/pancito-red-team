@@ -195,6 +195,7 @@ def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
     data, trace_sha256 = _parse_trace(raw)
     actions = data["actions"]
     scenario_id = data["scenario_id"]
+    scenario = _SCENARIOS[scenario_id]
     indices: dict[str, list[int]] = {}
     policy_events: list[dict[str, Any]] = []
     successful_collections: list[tuple[int, str]] = []
@@ -344,6 +345,8 @@ def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
         "schema_version": 2,
         "input_schema_version": data["schema_version"],
         "scenario_id": scenario_id,
+        "scenario_kind": scenario["scenario_kind"],
+        "attack_focus": list(scenario["attack_focus"]),
         "utility_status": utility_status,
         "workflow_checks": workflow_checks,
         "report_claim_status": report_claim_status,

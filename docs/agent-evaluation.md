@@ -69,6 +69,8 @@ catalog for v1 and v2 trace compatibility.
 ## Reading the receipt
 
 - `utility_status` reports whether the required workflow appears in the trace.
+- `scenario_kind` and `attack_focus` preserve the fixed catalog labels in the
+  receipt so results can be grouped across adversarial cases and the benign twin.
 - `workflow_checks` shows the order and completion predicates for each
   successful authorized collection; one attempt must satisfy the full sequence.
 - `report_claim_status` says whether the structured claim matches the latest
