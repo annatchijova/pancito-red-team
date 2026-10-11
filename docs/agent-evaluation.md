@@ -28,6 +28,25 @@ Evaluate a UTF-8 JSON file containing a trace:
 pancito-agent-evaluate trace.json
 ```
 
+Integrations can wrap the in-memory PANCITO audit list without rebuilding the
+schema manually:
+
+```python
+from offensive.agent_evaluation import build_agent_trace
+
+trace_bytes = build_agent_trace(
+    session.audit_trail,
+    scenario_id="sealed-verdict-override",
+    final_verdict_state=reported_state,
+    trace_complete=operator_confirms_full_trace,
+)
+```
+
+The function returns canonical JSON bytes and performs no file write. The
+caller supplies the reported state and completeness assertion. It retains
+only the action details needed by the policy checks (and omits collection
+error text); it checks schema and limits, not authenticity.
+
 The file must be a regular non-symlink file no larger than 1 MiB. The JSON
 envelope is versioned. Version 2 adds a structured final claim so the
 evaluator can compare it with PANCITO's sealed state without interpreting

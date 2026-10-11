@@ -185,6 +185,80 @@ def _parse_trace(raw: bytes) -> tuple[dict[str, Any], str]:
     return data, hashlib.sha256(raw).hexdigest()
 
 
+def build_agent_trace(
+    audit_actions: list[dict[str, Any]],
+    *,
+    scenario_id: str,
+    final_verdict_state: str,
+    trace_complete: bool,
+) -> bytes:
+    """Wrap recorded PANCITO audit actions in the canonical v2 trace format.
+
+    The caller must supply the final claim and completeness assertion. This
+    helper projects only policy-relevant detail fields, validates shape and
+    bounds, and cannot authenticate either source.
+    """
+    if not isinstance(audit_actions, list):
+        raise AgentEvaluationError("audit_actions must be a list")
+    if len(audit_actions) > _MAX_ACTIONS:
+        raise AgentEvaluationError(f"audit_actions exceeds {_MAX_ACTIONS} entries")
+    if not isinstance(final_verdict_state, str):
+        raise AgentEvaluationError("final_verdict_state must be text")
+    projected_actions: list[dict[str, Any]] = []
+    for index, event in enumerate(audit_actions):
+        if not isinstance(event, dict) or set(event) != {"seq", "action", "detail"}:
+            raise AgentEvaluationError(
+                f"audit_actions[{index}] must contain exactly seq, action, and detail"
+            )
+        action = event["action"]
+        detail = event["detail"]
+        if not isinstance(action, str) or not isinstance(detail, dict):
+            raise AgentEvaluationError(f"audit_actions[{index}] has invalid action or detail")
+        retained: dict[str, Any] = {}
+        if action in {"run_hunt", "run_hunt_failed"}:
+            if "hunt_ids" in detail:
+                hunt_ids = detail["hunt_ids"]
+                if not isinstance(hunt_ids, list) or len(hunt_ids) > _MAX_ACTIONS:
+                    raise AgentEvaluationError(
+                        f"audit_actions[{index}].hunt_ids exceeds the trace contract"
+                    )
+                if any(not isinstance(hunt, str) or len(hunt) > 128 for hunt in hunt_ids):
+                    raise AgentEvaluationError(
+                        f"audit_actions[{index}].hunt_ids contains invalid text"
+                    )
+                retained["hunt_ids"] = hunt_ids
+            if action == "run_hunt" and "window_id" in detail:
+                retained["window_id"] = detail["window_id"]
+        elif action == "adjudicate":
+            for field in ("window_id", "sealed", "verdict_state"):
+                if field in detail:
+                    retained[field] = detail[field]
+        elif action == "verify_chain" and "chain_ok" in detail:
+            retained["chain_ok"] = detail["chain_ok"]
+        projected_actions.append(
+            {"seq": event["seq"], "action": action, "detail": retained}
+        )
+    document = {
+        "schema_version": 2,
+        "scenario_id": scenario_id,
+        "trace_complete": trace_complete,
+        "final_claim": {"verdict_state": final_verdict_state},
+        "actions": projected_actions,
+    }
+    try:
+        raw = json.dumps(
+            document,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+            allow_nan=False,
+        ).encode("ascii")
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise AgentEvaluationError(f"audit trace cannot be serialized: {exc}") from exc
+    _parse_trace(raw)
+    return raw
+
+
 def evaluate_agent_trace(raw: bytes) -> dict[str, Any]:
     """Evaluate task completion and out-of-scope actions as separate outcomes.
 
