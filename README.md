@@ -82,7 +82,7 @@ agentic security product uses the first design.
 | Timeline composition audit | Do production Memory/MFT summaries preserve enough identity for cross-source causality? | Positive controls pass, but the production-shaped pair currently reports `FALSIFIED`; no sealed-verdict impact is claimed |
 | OpenAPI triage | Which declared routes deserve a bounded follow-up experiment? | Passive local artifact analysis; every result remains a candidate, never a finding |
 | Purple evaluation | Did Blue observe and alert on the exact executed behavior? | Red prevention and Blue detection remain separate conclusions |
-| [Agent-trace evaluation](docs/agent-evaluation.md) | Does a recorded trace stay within the fixed hunt scope, complete the workflow, and report the sealed state? | Offline deterministic check of a structured claim; trace origin and completeness remain unverified, and its receipt cannot affect a forensic verdict |
+| [Agent-trace evaluation](docs/agent-evaluation.md) | Does a recorded trace stay within the fixed hunt scope, complete the workflow, verify the latest sealed entry, and report its state? | Offline deterministic check with bounded trace construction; origin and completeness remain unverified, and its receipt cannot affect a forensic verdict ([red-team notes](docs/agent-evaluation-red-team.md)) |
 
 See the [interactive architecture](docs/pancito-architecture.html) for the
 component and trust-boundary view. Its source-evidence specification is
@@ -141,6 +141,10 @@ see the [Technical README](TECHNICAL_README.md#command-line-boundaries).
   control/negative-cell contracts and failure states.
 - [Purple evaluation tests](tests/test_purple_cli.py) bind Blue assertions to
   the exact Red and Blue artifacts evaluated.
+- [Agent-trace evaluation tests](tests/test_agent_evaluation.py) exercise
+  schema limits, adversarial tool sequences, claim consistency, and bounded
+  construction; the [red-team report](docs/agent-evaluation-red-team.md)
+  records reproduced evaluator defects and remaining evidence limits.
 - [Forensic-evasion differential](tests/test_forensic_evasion_differential.py)
   tests the real SIFT MFT parser/analyzer and event-chain detector against
   fixed synthetic ground truth without promoting sensor output to a verdict.
@@ -166,6 +170,9 @@ that every target or deployment is secure.
   component map with code provenance.
 - [Upstream research notes](UPSTREAM_RESEARCH.md) — reviewed projects, pinned
   commits, licenses, and the ideas adapted without copying source files.
+- [Agent-trace evaluation](docs/agent-evaluation.md) and its
+  [red-team notes](docs/agent-evaluation-red-team.md) — offline contract,
+  reproducible findings, and trace-authenticity limits.
 - [Attributions](ATTRIBUTIONS.md) — inherited and third-party provenance.
 
 ## License

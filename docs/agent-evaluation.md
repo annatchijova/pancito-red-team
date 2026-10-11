@@ -97,6 +97,9 @@ catalog for v1 and v2 trace compatibility.
 - `report_claim_status` says whether the structured claim matches the latest
   sealed state. A mismatch adds `SEALED_VERDICT_CONTRADICTION` and prevents task
   satisfaction in schema version 2.
+- `latest_sealed_chain_verified` states whether a successful custody-chain
+  verification appears after the latest sealed adjudication in the entire
+  trace. Schema version 2 requires this to be `true` for task satisfaction.
 - `security_status` reports unrecognized actions or a hunt-scope mismatch,
   including failed attempts, and a contradiction with the sealed state. An
   incomplete trace or an unassessable claim is `INCONCLUSIVE`.

@@ -82,7 +82,7 @@ productos agentic de seguridad utilicen el primer diseño.
 | Auditoría de composición timeline | ¿Los resúmenes productivos Memory/MFT preservan identidad suficiente para causalidad cross-source? | Los controles positivos pasan, pero el par con forma productiva hoy reporta `FALSIFIED`; no se afirma impacto sobre el veredicto sellado |
 | Triage OpenAPI | ¿Qué rutas declaradas merecen un experimento acotado? | Análisis pasivo local; cada resultado sigue siendo candidato, no hallazgo |
 | Evaluación Purple | ¿Blue observó y alertó sobre la conducta ejecutada? | Prevención Red y detección Blue permanecen separadas |
-| [Evaluación de trazas del agente](docs/agent-evaluation.md) | ¿Una traza respeta el scope fijo, completa el workflow e informa el estado sellado? | Chequeo offline de una afirmación estructurada; origen e integridad de la traza no se verifican y el recibo no altera el veredicto forense |
+| [Evaluación de trazas del agente](docs/agent-evaluation.md) | ¿Una traza respeta el scope fijo, completa el workflow, verifica el último sellado e informa su estado? | Chequeo offline determinista con construcción acotada; origen e integridad de la traza no se verifican y el recibo no altera el veredicto forense ([notas de red-team](docs/agent-evaluation-red-team.md)) |
 
 La [arquitectura interactiva](docs/pancito-architecture.html) muestra los
 componentes y fronteras de confianza. La
@@ -142,6 +142,10 @@ Para preparar el entorno y usar el servicio heredado opcional, ver
   controles, celdas negativas y degradación honesta.
 - [Evaluación Purple](tests/test_purple_cli.py): liga las afirmaciones Blue a
   los artefactos Red y Blue exactos que fueron evaluados.
+- [Pruebas de evaluación de trazas](tests/test_agent_evaluation.py): ejercitan
+  límites del esquema, secuencias adversariales, consistencia del claim y
+  construcción acotada. El [informe red-team](docs/agent-evaluation-red-team.md)
+  registra defectos reproducidos y límites de evidencia pendientes.
 - El [diferencial de evasión forense](tests/test_forensic_evasion_differential.py)
   prueba el parser/analyzer MFT y el detector de cadenas de eventos reales de
   SIFT contra ground truth sintético fijo, sin promover el sensor a veredicto.
@@ -167,6 +171,9 @@ objetivo o despliegue sea seguro.
   con procedencia hacia el código.
 - [Investigación upstream](UPSTREAM_RESEARCH.md) — proyectos revisados,
   commits, licencias e ideas adaptadas sin copiar código fuente.
+- [Evaluación de trazas del agente](docs/agent-evaluation.md) y sus
+  [notas red-team](docs/agent-evaluation-red-team.md) — contrato offline,
+  hallazgos reproducibles y límites de autenticidad de las trazas.
 - [Atribuciones](ATTRIBUTIONS.md) — procedencia heredada y de terceros.
 
 ## Licencia
