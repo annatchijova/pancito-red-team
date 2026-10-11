@@ -48,6 +48,8 @@ followed by successful custody-chain verification.
 ## Reading the receipt
 
 - `utility_status` reports whether the required workflow appears in the trace.
+- `workflow_checks` shows the order and completion predicates for each
+  successful authorized collection; one attempt must satisfy the full sequence.
 - `security_status` reports unrecognized actions or a hunt-scope mismatch,
   including failed attempts. An incomplete trace is `INCONCLUSIVE`.
 - `trace.sha256` identifies the exact submitted bytes. The trace remains
