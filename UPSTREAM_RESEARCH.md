@@ -87,3 +87,70 @@ jwt_tool (JWT testing, GPL-3.0) — same bug classes, incompatible license.
 - A container sandbox. Active HTTP experiments remain restricted to literal
   loopback targets, fixed request shapes, bounded counts, and no redirects.
 - Model-authored authorization, evidence assessment, scores, verdicts, or hashes.
+
+## Offensive framework survey
+
+Studied on 2026-10-15 from shallow local clones under `scratch/upstream-repos/`
+(not committed; `scratch/` is gitignored). Commit hashes pin the exact trees
+reviewed; license strings were read from each clone's `LICENSE*` file at that
+commit, not from repository metadata — see the Security-Datasets row for why
+that distinction matters. Same rule as the earlier passes: **ideas and
+structure only — no source files, templates, rules, payloads, or datasets were
+copied into this repository.**
+
+This pass covers offensive-execution frameworks and technique catalogs not
+previously reviewed (Atomic Red Team, CALDERA, AgentDojo, and the LLM/MCP
+evaluation tooling were assessed in the sections above).
+
+| Project | Reviewed commit | License observed | Useful pattern | PANCITO application |
+|---|---|---|---|---|
+| [Stratus Red Team](https://github.com/DataDog/stratus-red-team) | `592c425f1707d11dfda8cf16fe7027f159dfa172` | Apache-2.0 | Each technique is a registry entry carrying a stable dotted ID, platform, ATT&CK tactics, a `Detection` guidance block, `Detonate`/`Revert` functions, an `IsIdempotent` flag, and Terraform prerequisites; a `COLD → WARM → DETONATED` state machine governs the lifecycle, and every detonation stamps a `stratus-red-team_<uuid>` correlation ID into the HTTP user-agent | Strongest structural match found this pass: a closed registry of named, bounded techniques with paired warm-up/revert semantics and a correlation marker — the same contract shape as `offensive/` + `PANCITO-<hex16>` markers. Adaptable ideas: (a) an explicit scenario state field (declared/detonated/reverted) if active adapters ever arrive, (b) a `detection:` guidance text per catalog entry alongside `expected_techniques`, (c) `is_idempotent` metadata declaring whether a scenario may repeat without a revert. No Go code, Terraform, or live-cloud detonation adopted — PANCITO's boundary stays replay fixtures and bounded loopback differentials |
+| [Invoke-AtomicRedTeam](https://github.com/redcanaryco/invoke-atomicredteam) | `8af478bb9e4637df568ac1e596553b025b16cd1b` | MIT | Execution lifecycle split into `prereq check → execute → cleanup` with the cleanup command a first-class schema field; the test runs in its own process specifically so cleanup still runs if a defensive control kills the test process; pluggable `ExecutionLogger` backends (file, syslog, Windows event) record each run as a separate artifact | Two patterns worth keeping: (a) *cleanup outlives the test* — if PANCITO ever gains active experiments, the revert step must be scheduled independently of the test process, not as a finally-block; (b) *the run log is a separate evidence channel* — already realized here as the sealed receipt, so this validates rather than extends the design. No PowerShell or scheduler machinery applies |
+| [Splunk Attack Range](https://github.com/splunk/attack_range) | `fc9b9e719d8835da0bbb5c20d46c52a9778d64e2` | Apache-2.0 | `simulate` accepts only an explicit list of ATT&CK technique IDs or `(technique, guid)` atomic selections — the operator names items from a closed catalog and cannot supply arbitrary behavior; simulated telemetry is forwarded into the analytic platform, and `attack_data/` supports replaying recorded data instead of re-attacking | Validates the engagement-manifest design: `allowed_scenarios` selecting from a fixed catalog by ID is exactly how Attack Range scopes detonation. Its replay of recorded telemetry into the detection stack is the role `offensive/replay.py` already fills locally. Cloud provisioning, Splunk forwarding, and the service's own attack execution remain outside the boundary |
+| [Security-Datasets (Mordor)](https://github.com/OTRF/Security-Datasets) | `d9d40ef123d2c87d5d3df28c96bcab4f0faccc87` | MIT at the reviewed commit — but note the README footer still claims GPL-3.0; the `LICENSE` file (copyright 2021, OTR Forge) governs. Verify the file, not the label | Per-dataset `_metadata/SD*.yaml` records `attack_mappings` (technique + sub-technique + tactics), typed artifact links (`files:` host/network), and a `simulation:` provenance block naming the environment, the tool that produced the data (e.g. Empire module), and `permissions_required` — hostile telemetry with its generation method written down | Extends `replay.py`'s `technique_reference` field: a future fixture schema could carry a `simulation` provenance block (generator tool, environment, required permissions) plus a paired benign twin. Datasets themselves are large zipped captures hosted by URL — reference by URL + pinned hash if ever consumed; never vendor them, and note that any real capture embeds infrastructure-specific noise a synthetic fixture deliberately avoids |
+| [Adversary Emulation Library](https://github.com/center-for-threat-informed-defense/adversary_emulation_library) | `4467a6eed6e67d25009704130e1d27d1a8007f57` | Apache-2.0 | `format_dictionary.yaml` defines a scenario → step → sub-step/procedure structure; every procedure carries an ATT&CK ID, named executors, `input_arguments`, `dependencies` (prereq + get_prereq), and — distinctively — a `cti_source` field grounding each TTP in a cited threat-intelligence report; plans support loops and alternative phases | Two ideas: (a) `cti_source`-style provenance — grounding a PANCITO scenario in a documented report rather than bare technique IDs strengthens the Daubert posture; (b) the step/phase composition format is the reference shape *if* multi-step scenario chaining is ever wanted — currently deferred, since composed state expands the oracle surface. The repo ships ~1.3 GB of real adversary binaries/payloads; none of that material is relevant or adoptable |
+| [nuclei-templates](https://github.com/projectdiscovery/nuclei-templates) | `3de629d823bb6eb00aa3769edc365b6525134fb1` | MIT | Fully declarative YAML: `id`, `info` (severity, references, `metadata.verified`, `metadata.max-request`), then a protocol block with fixed `method`/`path` and a `matchers` set (word / status / content_type / regex, with AND/OR conditions); each template ends with a signed `digest` line so tampered templates are detectable | Confirms the bounded-differential shape: request shape + deterministic matchers ≈ PANCITO's Python differentials. Adoptable concepts: (a) declare the request bound in metadata (`max-request` ≈ the existing bounded-count convention, made explicit); (b) a `verified` flag distinguishing reviewed templates; (c) a digest over the catalog entry definition itself — PANCITO already hash-pins agent manifests in `agent/registry.py`, and sealing scenario definitions the same way is a natural extension. Not adopted: the free-form `{{BaseURL}}` target surface — loopback/literal-target restriction stands |
+| [Tsunami Security Scanner](https://github.com/google/tsunami-security-scanner) | `5dd969255145c0c237f8f57974c6519b49415046` | Apache-2.0 | Detection outcomes are a three-state enum: `SAFE`, `VULNERABILITY_PRESENT` (evidence suggests it but verification did not complete), `VULNERABILITY_VERIFIED` (the detector confirmed it) — the "present but unverified" middle state is a first-class result, not an error | Validates honest degradation: PANCITO's oracle already splits `CONTROL_GAP` / `INTEGRITY_FAILURE` / `EXECUTION_FAILED` on the same principle — a not-fully-verified result gets its own named state rather than folding into pass or fail. The plugin-service boundary (detectors as isolated processes behind a proto contract) is a reference shape only; PANCITO's modules stay in-process and stdlib-only |
+| [ThreatHunter-Playbook](https://github.com/OTRF/ThreatHunter-Playbook) | `9b52b40bb1d4deec9827b94a20d07e071b962ee7` | MIT | Hunt notebooks are structured Hypothesis → Technical Context → Offensive Tradecraft → Pre-Recorded Security Datasets: the detection hypothesis is written *before* the query, and every hunt cross-links the ATT&CK-mapped datasets that exercise it | Documentation pattern for detection expectations: each PANCITO scenario could carry a hypothesis-first description ("what should the blue side see") linking the fixture that exercises it — the same framing as the purple-team "expected telemetry is a hypothesis, not a fact" discipline. No notebook machinery adopted |
+
+### Excluded after license or boundary review (not cloned)
+
+| Project | License observed | Reason excluded |
+|---|---|---|
+| [Sliver](https://github.com/BishopFox/sliver) | GPL-3.0 (repo metadata) | Copyleft, incompatible with the reuse policy that already excluded Corsy and jwt_tool; also a free-form C2 — model-/operator-authored execution is exactly what the bounded catalog forbids |
+| [Infection Monkey](https://github.com/guardicore/monkey) | GPL-3.0 (repo metadata) | Copyleft; autonomous propagation model is the opposite of an explicit per-engagement authorization grant |
+| [Empire](https://github.com/EmpireProject/Empire) | BSD-3-Clause (repo metadata); upstream archived since 2020 (moved to BC-SECURITY) | C2/post-exploitation framework — outside the bounded-catalog invariant regardless of license |
+| [Mythic](https://github.com/its-a-feature/Mythic) | No SPDX assertion (repo metadata) | License undetermined *and* a C2 framework — both gates fail |
+| [elastic/detection-rules](https://github.com/elastic/detection-rules) | No SPDX assertion (Elastic/AGPL mix) | Non-standard license; also blue-side rule content — Sigma was already flagged for per-rule license review in the earlier pass. `elastic/RTA` (red team automation scripts) no longer exists as a standalone repo; its content was absorbed into this one |
+
+### What this pass changes
+
+Nothing yet — this section records adaptation *candidates*, each bounded:
+
+1. **Scenario provenance block.** Extend the replay catalog's `technique_reference`
+   toward the Security-Datasets `simulation:` shape (generator tool, environment,
+   permissions required) plus an optional `cti_source` — all descriptive fields,
+   none of which affects a sealed value.
+2. **Sealed catalog definitions.** Apply the registry's existing manifest-hash
+   pattern to `offensive/` scenario definitions so a catalog entry's identity is
+   pinned the same way an agent's tool contract is (nuclei's template `digest`
+   is the same idea, weaker — it authenticates the publisher, PANCITO only needs
+   integrity).
+3. **Detection-guidance text per scenario.** Stratus's `Detection` block and the
+   playbook's hypothesis-first format both argue for storing expected-telemetry
+   prose with each scenario — documentation only, read by the operator and the
+   narrator, never by the oracle.
+4. **Lifecycle vocabulary.** If active (non-replay) experiments are ever
+   authorized, adopt the warmup → detonate → revert → cleanup state machine with
+   cleanup survivable independent of the test process (Stratus + Invoke-AtomicRedTeam).
+   Until then this is documentation, not a plan.
+
+### Deliberately deferred (this pass)
+
+- Executing any upstream technique, atomic, template, or emulation plan —
+  everything reviewed stays reference material; PANCITO executes only its own
+  bounded modules on authorized loopback targets.
+- Multi-step scenario composition (the emulation-library step/phase format).
+- Vendoring any dataset, template, rule, or payload.
+- The cloud-provider detonation surfaces (Stratus/AWS/Azure/GCP/K8s) — PANCITO
+  has no authorized cloud target.
